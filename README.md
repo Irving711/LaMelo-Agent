@@ -75,18 +75,3 @@ npm run build
 
 前端 API 基地址可通过 `VITE_LAMELO_AGENT_API_BASE_URL` 配置；留空时使用当前站点地址。
 
-## 旧数据迁移
-
-旧版数据库、MinIO bucket 和 Elasticsearch 索引不会被应用自动重命名。需要保留已有数据时，先备份并在独立副本演练：
-
-- MySQL：`nexus_agent` → `lamelo_agent`
-- PostgreSQL：`nexus_agent_pgvector` → `lamelo_agent_pgvector`
-- MinIO：旧文档 bucket → `lamelo-agent-document`
-- Elasticsearch：将旧索引 reindex 到 LaMelo 索引
-- Kafka/Redis：按迁移说明排空旧消息并切换前缀
-
-详细迁移步骤和回滚说明保存在本地 `docs/migrations/`，该目录不会发布到 GitHub。本仓库不自动连接或操作这些服务。
-
-## 上游来源与许可
-
-本仓库以 [JavaUp 的 Nexus Agent 上游仓库](https://github.com/java-up-up/super-agent) 为基础进行 LaMelo 命名适配。原项目文档与内容来源见 [Nexus Agent 项目介绍](https://javaup.chat/super-agent/overview/project-intro)；原作者/维护者为“阿星不是程序员”。本次改造保留上游归属与 Apache License 2.0；第三方框架、依赖和示例名称仍按其正式名称标注。
