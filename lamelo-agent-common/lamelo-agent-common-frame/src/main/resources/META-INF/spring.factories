@@ -1,0 +1,4 @@
+org.springframework.boot.env.EnvironmentPostProcessor=\
+  com.lamelo.agent.environment.SpringEnvironment
+org.springframework.context.ApplicationContextInitializer=\
+  com.lamelo.agent.core.SpringUtil

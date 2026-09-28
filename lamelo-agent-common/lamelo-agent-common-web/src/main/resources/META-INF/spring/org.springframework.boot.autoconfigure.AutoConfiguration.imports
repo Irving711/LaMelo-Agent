@@ -1,0 +1,2 @@
+com.lamelo.agent.config.LaMeloAgentCommonAutoConfig
+com.lamelo.agent.database.mybatisplus.MybatisPlusAutoConfiguration

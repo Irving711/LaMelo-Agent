@@ -1,0 +1,65 @@
+prefix:
+  distinction:
+    # 测试环境使用独立资源前缀，避免读写开发或生产环境数据。
+    name: ${LAMELO_AGENT_NAMESPACE:lamelo-agent-test}
+
+spring:
+  data:
+    redis:
+      database: ${LAMELO_AGENT_REDIS_DATABASE:1}
+      host: ${LAMELO_AGENT_REDIS_HOST}
+      port: ${LAMELO_AGENT_REDIS_PORT:6379}
+      password: ${LAMELO_AGENT_REDIS_PASSWORD}
+      timeout: ${LAMELO_AGENT_REDIS_TIMEOUT:3000}
+  datasource:
+    url: ${LAMELO_AGENT_MYSQL_URL}
+    username: ${LAMELO_AGENT_MYSQL_USERNAME}
+    password: ${LAMELO_AGENT_MYSQL_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      pool-name: ${prefix.distinction.name}-hikari
+      maximum-pool-size: ${LAMELO_AGENT_MYSQL_POOL_MAXIMUM_SIZE:10}
+      minimum-idle: ${LAMELO_AGENT_MYSQL_POOL_MINIMUM_IDLE:2}
+  kafka:
+    bootstrap-servers: ${LAMELO_AGENT_KAFKA_BOOTSTRAP_SERVERS}
+
+app:
+  admin-auth:
+    username: ${LAMELO_AGENT_ADMIN_USERNAME}
+    password-hash: ${LAMELO_AGENT_ADMIN_PASSWORD_HASH}
+    token-secret: ${LAMELO_AGENT_ADMIN_TOKEN_SECRET}
+  manage:
+    minio:
+      endpoint: ${LAMELO_AGENT_MINIO_ENDPOINT}
+      access-key: ${LAMELO_AGENT_MINIO_ACCESS_KEY}
+      secret-key: ${LAMELO_AGENT_MINIO_SECRET_KEY}
+    kafka:
+      auto-create-topics: ${LAMELO_AGENT_KAFKA_AUTO_CREATE_TOPICS:false}
+    pgvector:
+      host: ${LAMELO_AGENT_PGVECTOR_HOST}
+      port: ${LAMELO_AGENT_PGVECTOR_PORT:5432}
+      database: ${LAMELO_AGENT_PGVECTOR_DATABASE:lamelo_agent_pgvector_test}
+      username: ${LAMELO_AGENT_PGVECTOR_USERNAME}
+      password: ${LAMELO_AGENT_PGVECTOR_PASSWORD}
+      maximum-pool-size: ${LAMELO_AGENT_PGVECTOR_POOL_MAXIMUM_SIZE:5}
+      minimum-idle: ${LAMELO_AGENT_PGVECTOR_POOL_MINIMUM_IDLE:1}
+    elasticsearch:
+      uris:
+        - ${LAMELO_AGENT_ELASTICSEARCH_URI}
+      username: ${LAMELO_AGENT_ELASTICSEARCH_USERNAME}
+      password: ${LAMELO_AGENT_ELASTICSEARCH_PASSWORD}
+    neo4j:
+      uri: ${LAMELO_AGENT_NEO4J_URI}
+      username: ${LAMELO_AGENT_NEO4J_USERNAME}
+      password: ${LAMELO_AGENT_NEO4J_PASSWORD}
+      database: ${LAMELO_AGENT_NEO4J_DATABASE:neo4j}
+
+logging:
+  level:
+    org.springframework.ai: INFO
+    com.alibaba.cloud.ai: INFO
+
+management:
+  endpoint:
+    health:
+      show-details: when-authorized

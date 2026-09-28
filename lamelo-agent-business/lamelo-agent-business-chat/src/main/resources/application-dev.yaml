@@ -1,0 +1,69 @@
+prefix:
+  distinction:
+    # 保留当前本地开发环境使用的 bucket、Kafka topic 和 ES 索引名称。
+    name: ${LAMELO_AGENT_NAMESPACE:lamelo-agent}
+
+spring:
+  data:
+    redis:
+      database: ${LAMELO_AGENT_REDIS_DATABASE:0}
+      host: ${LAMELO_AGENT_REDIS_HOST:127.0.0.1}
+      port: ${LAMELO_AGENT_REDIS_PORT:6379}
+      password: ${LAMELO_AGENT_REDIS_PASSWORD:}
+      timeout: ${LAMELO_AGENT_REDIS_TIMEOUT:3000}
+  datasource:
+    url: ${LAMELO_AGENT_MYSQL_URL:jdbc:mysql://127.0.0.1:3306/lamelo_agent?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${LAMELO_AGENT_MYSQL_USERNAME:root}
+    password: ${LAMELO_AGENT_MYSQL_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      pool-name: ${prefix.distinction.name}-hikari
+      maximum-pool-size: ${LAMELO_AGENT_MYSQL_POOL_MAXIMUM_SIZE:10}
+      minimum-idle: ${LAMELO_AGENT_MYSQL_POOL_MINIMUM_IDLE:2}
+  kafka:
+    bootstrap-servers: ${LAMELO_AGENT_KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+app:
+  admin-auth:
+    username: ${LAMELO_AGENT_ADMIN_USERNAME:admin}
+    password: ${LAMELO_AGENT_ADMIN_PASSWORD:admin123456}
+    token-secret: ${LAMELO_AGENT_ADMIN_TOKEN_SECRET:lamelo-agent-admin-token-secret-change-me}
+  manage:
+    minio:
+      endpoint: ${LAMELO_AGENT_MINIO_ENDPOINT:http://127.0.0.1:9000}
+      access-key: ${LAMELO_AGENT_MINIO_ACCESS_KEY:minioadmin}
+      secret-key: ${LAMELO_AGENT_MINIO_SECRET_KEY:minioadmin}
+    kafka:
+      auto-create-topics: ${LAMELO_AGENT_KAFKA_AUTO_CREATE_TOPICS:true}
+    pgvector:
+      host: ${LAMELO_AGENT_PGVECTOR_HOST:127.0.0.1}
+      port: ${LAMELO_AGENT_PGVECTOR_PORT:5432}
+      database: ${LAMELO_AGENT_PGVECTOR_DATABASE:lamelo_agent_pgvector}
+      username: ${LAMELO_AGENT_PGVECTOR_USERNAME:postgres}
+      password: ${LAMELO_AGENT_PGVECTOR_PASSWORD:postgres}
+      maximum-pool-size: ${LAMELO_AGENT_PGVECTOR_POOL_MAXIMUM_SIZE:5}
+      minimum-idle: ${LAMELO_AGENT_PGVECTOR_POOL_MINIMUM_IDLE:1}
+    elasticsearch:
+      uris:
+        - ${LAMELO_AGENT_ELASTICSEARCH_URI:http://127.0.0.1:9200}
+      username: ${LAMELO_AGENT_ELASTICSEARCH_USERNAME:elastic}
+      password: ${LAMELO_AGENT_ELASTICSEARCH_PASSWORD:elastic}
+    neo4j:
+      uri: ${LAMELO_AGENT_NEO4J_URI:bolt://127.0.0.1:7687}
+      username: ${LAMELO_AGENT_NEO4J_USERNAME:neo4j}
+      password: ${LAMELO_AGENT_NEO4J_PASSWORD:12345678}
+      database: ${LAMELO_AGENT_NEO4J_DATABASE:neo4j}
+
+logging:
+  level:
+    org.springframework.ai: DEBUG
+    com.alibaba.cloud.ai: DEBUG
+
+management:
+  endpoint:
+    health:
+      show-details: always

@@ -1,0 +1,1 @@
+CREATE DATABASE lamelo_agent_pgvector WITH ENCODING 'UTF8';

@@ -1,5 +1,60 @@
+HELP.md
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+logs/
+.DS_Store
 .env
 .env.*
 .superpower/
 .superpowers/
 docs/**/*.md
+
+# 本地文档与生产环境私有配置不提交到远程仓库
+/docs/
+/lamelo-agent-business/lamelo-agent-business-chat/src/main/resources/application-prod.yaml
+
+### Agent ###
+cookasyncagent/
+**/dependency-reduced-pom.xml
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+*.log
+*.hprof
+.flattened-pom.xml
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode
+.qoder
+.cursor
+.trae
+.codex
+.claude
+.agents
+CLAUDE.md
+AGENTS.md
+
+document
