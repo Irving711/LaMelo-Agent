@@ -366,11 +366,11 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
                 null,
                 "开始执行向量化。",
                 detail("chunkCount", chunkEntityList.size(),
-                    "embeddingBatchSize", DefaultDocumentVectorGateway.EMBEDDING_BATCH_SIZE_LIMIT,
+                    "embeddingBatchSize", QdrantChunkGateway.EMBEDDING_BATCH_SIZE_LIMIT,
                     "embeddingBatchCount",
-                    (chunkEntityList.size() + DefaultDocumentVectorGateway.EMBEDDING_BATCH_SIZE_LIMIT - 1)
-                        / DefaultDocumentVectorGateway.EMBEDDING_BATCH_SIZE_LIMIT,
-                    "vectorStoreType", DocumentVectorStoreTypeEnum.PG_VECTOR.getMsg(),
+                    (chunkEntityList.size() + QdrantChunkGateway.EMBEDDING_BATCH_SIZE_LIMIT - 1)
+                        / QdrantChunkGateway.EMBEDDING_BATCH_SIZE_LIMIT,
+                    "vectorStoreType", DocumentVectorStoreTypeEnum.QDRANT.getMsg(),
                     "parentCount", parentBlockEntityList.size()));
 
             vectorGateway.vectorize(chunkEntityList);
@@ -392,11 +392,11 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
                 null,
                 "向量化完成。",
                 detail("chunkCount", chunkEntityList.size(),
-                    "embeddingBatchSize", DefaultDocumentVectorGateway.EMBEDDING_BATCH_SIZE_LIMIT,
+                    "embeddingBatchSize", QdrantChunkGateway.EMBEDDING_BATCH_SIZE_LIMIT,
                     "embeddingBatchCount",
-                    (chunkEntityList.size() + DefaultDocumentVectorGateway.EMBEDDING_BATCH_SIZE_LIMIT - 1)
-                        / DefaultDocumentVectorGateway.EMBEDDING_BATCH_SIZE_LIMIT,
-                    "vectorStoreType", DocumentVectorStoreTypeEnum.PG_VECTOR.getMsg(),
+                    (chunkEntityList.size() + QdrantChunkGateway.EMBEDDING_BATCH_SIZE_LIMIT - 1)
+                        / QdrantChunkGateway.EMBEDDING_BATCH_SIZE_LIMIT,
+                    "vectorStoreType", DocumentVectorStoreTypeEnum.QDRANT.getMsg(),
                     "parentCount", parentBlockEntityList.size()));
 
             task.setCurrentStage(DocumentTaskStageEnum.STORE_COMPLETE.getCode());
@@ -429,7 +429,7 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
                 .eq(LaMeloAgentDocumentChunk::getTaskId, taskId)
                 .eq(LaMeloAgentDocumentChunk::getStatus, BusinessStatus.YES.getCode())
                 .set(LaMeloAgentDocumentChunk::getVectorStatus, DocumentVectorStatusEnum.VECTOR_FAILED.getCode())
-                .set(LaMeloAgentDocumentChunk::getVectorStoreType, DocumentVectorStoreTypeEnum.PG_VECTOR.getCode()));
+                .set(LaMeloAgentDocumentChunk::getVectorStoreType, DocumentVectorStoreTypeEnum.QDRANT.getCode()));
 
             updateStepExecuteStatus(planId, DocumentStrategyExecuteStatusEnum.EXECUTE_FAILED.getCode());
             failTask(task, startTime, exception, task.getCurrentStage());
@@ -501,7 +501,7 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
 
                 chunk.setTokenCount(estimateTokenCount(childCandidate.getText()));
                 chunk.setVectorStatus(DocumentVectorStatusEnum.WAIT_VECTOR.getCode());
-                chunk.setVectorStoreType(DocumentVectorStoreTypeEnum.PG_VECTOR.getCode());
+                chunk.setVectorStoreType(DocumentVectorStoreTypeEnum.QDRANT.getCode());
                 chunk.setStatus(BusinessStatus.YES.getCode());
                 chunkEntityList.add(chunk);
                 childCount++;
@@ -589,11 +589,11 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
             structureNodes == null ? 0 : structureNodes.size());
         DocumentNavigationIndexService navigationIndexService = navigationIndexServiceProvider.getIfAvailable();
         if (navigationIndexService != null) {
-            log.info("同步导航 ES 索引: documentId={}, parseTaskId={}", documentId, parseTaskId);
+            log.info("同步导航 Qdrant 索引: documentId={}, parseTaskId={}", documentId, parseTaskId);
             navigationIndexService.reindexDocumentNodes(documentId, parseTaskId, structureNodes);
         }
         else {
-            log.info("跳过导航 ES 索引同步，因为服务未启用: documentId={}, parseTaskId={}", documentId, parseTaskId);
+            log.info("跳过导航 Qdrant 索引同步，因为服务未启用: documentId={}, parseTaskId={}", documentId, parseTaskId);
         }
         DocumentStructureGraphProjectionService graphProjectionService = graphProjectionServiceProvider.getIfAvailable();
         if (graphProjectionService != null && graphProjectionService.enabled()) {

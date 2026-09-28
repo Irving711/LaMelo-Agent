@@ -1,4 +1,4 @@
-package com.lamelo.agent.ai.manage.model.es;
+package com.lamelo.agent.ai.manage.model.index;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

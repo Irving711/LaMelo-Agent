@@ -9,7 +9,8 @@ package com.lamelo.agent.enums;
 public enum DocumentVectorStoreTypeEnum {
     MILVUS(1, "Milvus"),
     PG_VECTOR(2, "PGVector"),
-    ELASTICSEARCH(3, "Elasticsearch");
+    ELASTICSEARCH(3, "Elasticsearch"),
+    QDRANT(4, "Qdrant");
 
     private final Integer code;
 

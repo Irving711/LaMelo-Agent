@@ -1,13 +1,8 @@
 package com.lamelo.agent.ai.manage.service.impl;
 
 import cn.hutool.core.util.StrUtil;
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.Refresh;
-import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
-import co.elastic.clients.elasticsearch.core.BulkRequest;
-import co.elastic.clients.elasticsearch.core.BulkResponse;
-import co.elastic.clients.elasticsearch.core.SearchResponse;
-import co.elastic.clients.elasticsearch.core.search.Hit;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,15 +17,15 @@ import com.lamelo.agent.ai.manage.mapper.LaMeloAgentDocumentProfileMapper;
 import com.lamelo.agent.ai.manage.mapper.LaMeloAgentKnowledgeScopeNodeMapper;
 import com.lamelo.agent.ai.manage.mapper.LaMeloAgentKnowledgeTopicNodeMapper;
 import com.lamelo.agent.ai.manage.mapper.LaMeloAgentTopicDocumentRelationMapper;
-import com.lamelo.agent.ai.manage.model.es.KnowledgeRouteIndexRecord;
+import com.lamelo.agent.ai.manage.model.index.KnowledgeRouteIndexRecord;
+import com.lamelo.agent.ai.manage.qdrant.QdrantStore;
+import com.lamelo.agent.ai.manage.qdrant.SparseTextEncoder;
 import com.lamelo.agent.ai.manage.service.KnowledgeRouteIndexService;
 import com.lamelo.agent.enums.BusinessStatus;
 import com.lamelo.agent.enums.DocumentIndexStatusEnum;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,6 +34,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -51,14 +49,14 @@ import java.util.stream.Collectors;
 @Slf4j
 @AllArgsConstructor
 @Service
-@ConditionalOnProperty(prefix = "app.manage.elasticsearch", name = "enabled", havingValue = "true", matchIfMissing = true)
-public class ElasticsearchKnowledgeRouteIndexService implements KnowledgeRouteIndexService {
+public class QdrantKnowledgeRouteIndexService implements KnowledgeRouteIndexService {
 
-    private static final Duration REFRESH_INTERVAL = Duration.ofSeconds(5);
+    private static final Duration REFRESH_INTERVAL = Duration.ofMinutes(5);
     private static final AtomicLong LAST_REFRESH_TIME = new AtomicLong(0L);
 
-    @Qualifier("documentManageElasticsearchClient")
-    private final ElasticsearchClient elasticsearchClient;
+    private final QdrantStore store;
+    private final SparseTextEncoder encoder;
+    private final ObjectMapper mapper;
     private final DocumentManageProperties properties;
     private final LaMeloAgentKnowledgeScopeNodeMapper scopeNodeMapper;
     private final LaMeloAgentKnowledgeTopicNodeMapper topicNodeMapper;
@@ -92,55 +90,25 @@ public class ElasticsearchKnowledgeRouteIndexService implements KnowledgeRouteIn
             return List.of();
         }
         refreshIfNeeded();
-        List<String> entityTerms = extractEntityTerms(routingText);
         try {
-            SearchResponse<KnowledgeRouteIndexRecord> response = elasticsearchClient.search(search -> search
-                    .index(properties.getElasticsearch().getRouteIndexName())
-                    .size(Math.max(1, Math.min(size, 10)))
-                    .query(query -> query.bool(bool -> {
-                        bool.filter(filter -> filter.term(term -> term.field("entityType").value(entityType)));
-                        bool.should(should -> should.matchPhrase(matchPhrase -> matchPhrase
-                            .field("displayName")
-                            .query(routingText)
-                            .boost(12.0f)
-                        ));
-                        bool.should(should -> should.multiMatch(multiMatch -> multiMatch
-                            .query(routingText)
-                            .fields("displayName^10", "aliasesText^8", "examplesText^6", "summaryText^5", "routeText^4", "descriptionText^3")
-                            .type(TextQueryType.BestFields)
-                        ));
-                        for (String entityTerm : entityTerms) {
-                            bool.should(should -> should.term(term -> term
-                                .field("entityTerms")
-                                .value(entityTerm)
-                                .boost(9.0f)
-                            ));
-                        }
-                        bool.minimumShouldMatch("1");
-                        return bool;
-                    })),
-                KnowledgeRouteIndexRecord.class);
+            List<JsonNode> response = store.query(properties.getQdrant().getRouteCollection(), "lexical",
+                encoder.encode(routingText), QdrantStore.match("entityType", entityType),
+                Math.max(1, Math.min(size, 10)));
             List<RouteLexicalHit> hits = new ArrayList<>();
-            for (Hit<KnowledgeRouteIndexRecord> hit : response.hits().hits()) {
-                KnowledgeRouteIndexRecord source = hit.source();
-                if (source == null) {
-                    continue;
-                }
+            for (JsonNode hit : response) {
+                JsonNode source = hit.path("payload");
                 hits.add(new RouteLexicalHit(
-                    source.getRouteId(),
-                    source.getEntityCode(),
-                    source.getEntityType(),
-                    source.getDocumentId(),
-                    source.getScopeCode(),
-                    source.getTopicCode(),
-                    source.getDocumentName(),
-                    hit.score() == null ? 0D : hit.score()
+                    source.path("routeId").asText(), source.path("entityCode").asText(),
+                    source.path("entityType").asText(),
+                    source.path("documentId").isNumber() ? source.path("documentId").asLong() : null,
+                    source.path("scopeCode").asText(""), source.path("topicCode").asText(""),
+                    source.path("documentName").asText(""), hit.path("score").asDouble()
                 ));
             }
             return hits;
         }
-        catch (IOException exception) {
-            log.warn("知识路由 ES lexical 检索失败，退回语义匹配: entityType={}, query='{}'", entityType, StrUtil.maxLength(routingText, 120), exception);
+        catch (RuntimeException exception) {
+            log.warn("知识路由 Qdrant 检索失败，退回语义匹配: entityType={}", entityType, exception);
             return List.of();
         }
     }
@@ -150,59 +118,51 @@ public class ElasticsearchKnowledgeRouteIndexService implements KnowledgeRouteIn
         if (documentId == null) {
             return;
         }
-        try {
-            elasticsearchClient.deleteByQuery(delete -> delete
-                .index(properties.getElasticsearch().getRouteIndexName())
-                .refresh(true)
-                .query(query -> query.bool(bool -> bool
-                    .filter(filter -> filter.term(term -> term
-                        .field("entityType")
-                        .value("document")
-                    ))
-                    .filter(filter -> filter.term(term -> term
-                        .field("documentId")
-                        .value(documentId)
-                    ))
-                ))
-            );
-            log.info("知识路由索引中的文档路由快照已删除: documentId={}, index={}",
-                documentId, properties.getElasticsearch().getRouteIndexName());
-        }
-        catch (IOException exception) {
-            throw new IllegalStateException("删除知识路由索引中的文档路由快照失败", exception);
-        }
+        store.deleteByDocumentId(properties.getQdrant().getRouteCollection(), documentId);
     }
 
-    private void refreshAll() throws IOException {
+    private void refreshAll() {
         List<KnowledgeRouteIndexRecord> records = buildIndexRecords();
-        String indexName = properties.getElasticsearch().getRouteIndexName();
-        elasticsearchClient.deleteByQuery(delete -> delete
-            .index(indexName)
-            .refresh(true)
-            .query(query -> query.matchAll(matchAll -> matchAll))
-        );
-        if (records.isEmpty()) {
-            log.info("知识路由索引刷新完成，但当前没有可写入的路由快照。");
-            return;
-        }
-        BulkRequest.Builder bulkBuilder = new BulkRequest.Builder()
-            .index(indexName)
-            .refresh(Refresh.WaitFor);
+        List<Map<String, Object>> batch = new ArrayList<>();
+        Set<String> activeIds = new HashSet<>();
         for (KnowledgeRouteIndexRecord record : records) {
-            bulkBuilder.operations(operation -> operation.index(index -> index
-                .id(record.getRouteId())
-                .document(record)
-            ));
+            Map<String, Double> text = new LinkedHashMap<>();
+            addText(text, record.getDisplayName(), 10D);
+            addText(text, record.getAliasesText(), 8D);
+            addText(text, record.getExamplesText(), 6D);
+            addText(text, record.getSummaryText(), 5D);
+            addText(text, record.getRouteText(), 4D);
+            addText(text, record.getDescriptionText(), 3D);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> payload = mapper.convertValue(record, Map.class);
+            String id = UUID.nameUUIDFromBytes(record.getRouteId().getBytes(StandardCharsets.UTF_8)).toString();
+            activeIds.add(id);
+            batch.add(Map.of("id", id, "vector", Map.of("lexical", encoder.encode(text)), "payload", payload));
+            if (batch.size() == 100) {
+                store.upsert(properties.getQdrant().getRouteCollection(), batch);
+                batch.clear();
+            }
         }
-        BulkResponse response = elasticsearchClient.bulk(bulkBuilder.build());
-        if (response.errors()) {
-            String errorMessage = response.items().stream()
-                .filter(item -> item.error() != null)
-                .map(item -> item.id() + ":" + item.error().reason())
-                .collect(Collectors.joining("; "));
-            throw new IllegalStateException("批量写入知识路由索引失败: " + errorMessage);
+        store.upsert(properties.getQdrant().getRouteCollection(), batch);
+        List<String> obsolete = new ArrayList<>();
+        for (JsonNode point : store.scroll(properties.getQdrant().getRouteCollection())) {
+            String id = point.path("id").asText();
+            if (!activeIds.contains(id)) {
+                obsolete.add(id);
+                if (obsolete.size() == 100) {
+                    store.deletePoints(properties.getQdrant().getRouteCollection(), obsolete);
+                    obsolete.clear();
+                }
+            }
         }
-        log.info("知识路由索引刷新完成: recordCount={}, index={}", records.size(), indexName);
+        store.deletePoints(properties.getQdrant().getRouteCollection(), obsolete);
+        log.info("知识路由索引刷新完成: recordCount={}", records.size());
+    }
+
+    private void addText(Map<String, Double> text, String value, double weight) {
+        if (StrUtil.isNotBlank(value)) {
+            text.merge(value, weight, Double::sum);
+        }
     }
 
     private List<KnowledgeRouteIndexRecord> buildIndexRecords() {

@@ -3,8 +3,6 @@ package com.lamelo.agent.ai.manage.config;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * @program: 企业级别深度设计 AI Agent。添加 阿星不是程序员 微信，添加时备注 super 来获取项目的完整资料
@@ -24,9 +22,7 @@ public class DocumentManageProperties {
 
     private StructureParsing structureParsing = new StructureParsing();
 
-    private PgVector pgVector = new PgVector();
-
-    private Elasticsearch elasticsearch = new Elasticsearch();
+    private Qdrant qdrant = new Qdrant();
 
     private Neo4j neo4j = new Neo4j();
 
@@ -77,53 +73,21 @@ public class DocumentManageProperties {
     }
 
     @Data
-    public static class PgVector {
+    public static class Qdrant {
 
-        private Boolean enabled = Boolean.TRUE;
+        private String endpoint = "http://127.0.0.1:6333";
 
-        private String host = "127.0.0.1";
+        private String apiKey = "";
 
-        private Integer port = 5432;
+        private Integer dimension = 1024;
 
-        private String database = "lamelo_agent_pgvector";
+        private Integer timeoutSeconds = 10;
 
-        private String schema = "public";
+        private String chunkCollection = "lamelo-agent-document-chunks";
 
-        private String username = "postgres";
+        private String navigationCollection = "lamelo-agent-document-navigation";
 
-        private String password = "postgres";
-
-        private String poolName = "lamelo-agent-manage-pgvector-hikari";
-
-        private Integer maximumPoolSize = 5;
-
-        private Integer minimumIdle = 1;
-    }
-
-    @Data
-    public static class Elasticsearch {
-
-        private Boolean enabled = Boolean.TRUE;
-
-        private List<String> uris = new ArrayList<>(List.of("http://127.0.0.1:9200"));
-
-        private String username = "elastic";
-
-        private String password = "elastic";
-
-        private String indexName = "lamelo-agent-document-keyword";
-
-        private String analyzer = "ik_max_word";
-
-        private String searchAnalyzer = "ik_smart";
-
-        private String navigationIndexName = "lamelo-agent-document-navigation";
-
-        private String routeIndexName = "lamelo-agent-knowledge-route";
-
-        private Integer connectTimeoutMillis = 3000;
-
-        private Integer socketTimeoutMillis = 5000;
+        private String routeCollection = "lamelo-agent-knowledge-route";
     }
 
     @Data

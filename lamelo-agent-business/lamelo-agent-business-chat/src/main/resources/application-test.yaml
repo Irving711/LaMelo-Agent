@@ -35,19 +35,9 @@ app:
       secret-key: ${LAMELO_AGENT_MINIO_SECRET_KEY}
     kafka:
       auto-create-topics: ${LAMELO_AGENT_KAFKA_AUTO_CREATE_TOPICS:false}
-    pgvector:
-      host: ${LAMELO_AGENT_PGVECTOR_HOST}
-      port: ${LAMELO_AGENT_PGVECTOR_PORT:5432}
-      database: ${LAMELO_AGENT_PGVECTOR_DATABASE:lamelo_agent_pgvector_test}
-      username: ${LAMELO_AGENT_PGVECTOR_USERNAME}
-      password: ${LAMELO_AGENT_PGVECTOR_PASSWORD}
-      maximum-pool-size: ${LAMELO_AGENT_PGVECTOR_POOL_MAXIMUM_SIZE:5}
-      minimum-idle: ${LAMELO_AGENT_PGVECTOR_POOL_MINIMUM_IDLE:1}
-    elasticsearch:
-      uris:
-        - ${LAMELO_AGENT_ELASTICSEARCH_URI}
-      username: ${LAMELO_AGENT_ELASTICSEARCH_USERNAME}
-      password: ${LAMELO_AGENT_ELASTICSEARCH_PASSWORD}
+    qdrant:
+      endpoint: ${LAMELO_AGENT_QDRANT_ENDPOINT}
+      api-key: ${LAMELO_AGENT_QDRANT_API_KEY:}
     neo4j:
       uri: ${LAMELO_AGENT_NEO4J_URI}
       username: ${LAMELO_AGENT_NEO4J_USERNAME}

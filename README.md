@@ -8,7 +8,7 @@ LaMelo Agent 是一个 Java 多模块 AI Agent 与 RAG 项目，包含对话工�
 
 - ReAct Agent、工具调用、联网搜索与 SSE 流式对话
 - 文档上传、异步解析、组合式切块和向量化
-- 知识域/主题/文档三级路由，PGVector 与 Elasticsearch 混合检索
+- 知识域/主题/文档三级路由，Qdrant 稠密与稀疏向量混合检索
 - RRF 融合、可选 Rerank、证据预算控制和无证据短路
 - 会话记忆、Checkpoint、执行轨迹和管理控制台
 - Skills 与 MCP 扩展示例，以及多个 Spring AI 示例模块
@@ -23,16 +23,17 @@ LaMelo Agent 是一个 Java 多模块 AI Agent 与 RAG 项目，包含对话工�
 | `lamelo-agent-redisson-framework`、`lamelo-agent-redis-tool-framework` | Redis/Redisson 支持 |
 | `ai-example` | Spring AI、RAG、MCP、记忆等示例 |
 | `vue` | Vue 3 前端与管理控制台 |
-| `sql` | MySQL、PostgreSQL 全新安装脚本 |
+| `sql` | MySQL 安装脚本与旧 PostgreSQL 数据迁移参考脚本 |
+| `scripts/migrate_qdrant.py` | 旧索引数据迁移到 Qdrant 的独立工具 |
 
 ## 环境要求
 
 - JDK 17、Maven 3.8+
 - Node.js 与 npm（前端）
-- MySQL、PostgreSQL + pgvector、Redis、Kafka、MinIO、Elasticsearch；Neo4j 用于文档结构图谱
+- MySQL、Redis、Kafka、MinIO、Qdrant；Neo4j 可选，默认关闭
 - 模型服务密钥；联网搜索和 Rerank 按需配置
 
-应用默认监听 `9082`。后端主应用通过 `application.yaml` 与 `application-{dev,test,prod}.yaml` 区分公共、开发、测试和生产配置；未指定时使用 `dev`。测试/生产启动必须显式设置 `SPRING_PROFILES_ACTIVE`。测试环境所需的环境变量名称可查看仓库中的 `application-test.yaml`。
+应用默认监听 `9082`。后端主应用通过 `application.yaml` 与 `application-{dev,test,prod}.yaml` 区分公共、开发、测试和生产配置；当前默认 profile 为 `prod`，本地开发请显式设置 `SPRING_PROFILES_ACTIVE=dev`。测试环境所需的环境变量名称可查看仓库中的 `application-test.yaml`。
 
 ## 配置与启动
 
@@ -46,11 +47,11 @@ $env:SPRING_PROFILES_ACTIVE = "dev"
 
 按需设置 `LAMELO_AGENT_RERANK_API_KEY`。开发环境的本地服务默认连接信息仅保留在 `application-dev.yaml`；测试和生产 profile 要求通过环境变量提供基础设施地址及凭据。不要把真实密钥写入仓库。
 
-开发环境默认 MySQL 库为 `lamelo_agent`，pgvector 库为 `lamelo_agent_pgvector`。新环境按顺序执行：
+开发环境默认 MySQL 库为 `lamelo_agent`。新环境按顺序执行：
 
 1. 在 MySQL 执行 `sql/Mysql/create_database_mysql.sql` 和 `sql/Mysql/create_table_mysql.sql`。
-2. 创建 PostgreSQL 数据库 `lamelo_agent_pgvector`，再连接该库执行 `sql/PostgresSql/create_table_postgres_sql.sql`。
-3. 启动 Redis、Kafka、MinIO、Elasticsearch、PostgreSQL/pgvector 和 MySQL；本地地址与账号默认值位于 `application-dev.yaml`。
+2. 启动 Redis、Kafka、MinIO、Qdrant 和 MySQL；本地地址与账号默认值位于 `application-dev.yaml`。Qdrant 需支持稀疏向量的 IDF 修正和 Query API。
+3. 如需保留旧 pgvector 与 Elasticsearch 索引，先使用 `scripts/migrate_qdrant.py` 重建并核对数据，再切换 Qdrant 集合别名；操作说明见 `scripts/README-qdrant-migration.md`。
 4. 启动后端和前端：
 
 ```powershell
