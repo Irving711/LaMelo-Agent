@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import com.lamelo.agent.ai.manage.config.DocumentManageProperties;
 import com.lamelo.agent.ai.manage.mq.message.DocumentIndexBuildMessage;
 import com.lamelo.agent.ai.manage.mq.message.DocumentParseRouteMessage;
-import com.lamelo.agent.core.SpringUtil;
 import com.lamelo.agent.enums.DocumentManageCode;
 import com.lamelo.agent.exception.LaMeloAgentFrameException;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -29,12 +28,12 @@ public class DocumentKafkaProducer {
 
     public void sendParseRoute(DocumentParseRouteMessage message) {
 
-        send(SpringUtil.getPrefixDistinctionName() + "-" + properties.getKafka().getParseTopic(), String.valueOf(message.getDocumentId()), message);
+        send(properties.getKafka().getParseTopic(), String.valueOf(message.getDocumentId()), message);
     }
 
     public void sendIndexBuild(DocumentIndexBuildMessage message) {
 
-        send(SpringUtil.getPrefixDistinctionName() + "-" + properties.getKafka().getIndexTopic(), String.valueOf(message.getDocumentId()), message);
+        send(properties.getKafka().getIndexTopic(), String.valueOf(message.getDocumentId()), message);
     }
 
     private void send(String topic, String key, Object message) {

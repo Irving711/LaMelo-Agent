@@ -8,8 +8,6 @@ import com.lamelo.agent.ai.manage.service.DocumentAsyncProcessService;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-import static com.lamelo.agent.constant.Constant.SPRING_INJECT_PREFIX_DISTINCTION_NAME;
-
 /**
  * @program: 企业级别深度设计 AI Agent。添加 阿星不是程序员 微信，添加时备注 super 来获取项目的完整资料
  * @description: 消息组件
@@ -30,7 +28,7 @@ public class DocumentKafkaConsumer {
         this.objectMapper = objectMapper;
     }
 
-    @KafkaListener(topics = SPRING_INJECT_PREFIX_DISTINCTION_NAME+"-"+"${app.manage.kafka.parse-topic}", groupId = "${app.manage.kafka.group-id}-parse")
+    @KafkaListener(topics = "${app.manage.kafka.parse-topic}", groupId = "${app.manage.kafka.group-id}-parse")
     public void consumeParseRoute(String payload) {
         try {
 
@@ -44,7 +42,7 @@ public class DocumentKafkaConsumer {
         }
     }
 
-    @KafkaListener(topics = SPRING_INJECT_PREFIX_DISTINCTION_NAME+"-"+"${app.manage.kafka.index-topic}", groupId = "${app.manage.kafka.group-id}-index")
+    @KafkaListener(topics = "${app.manage.kafka.index-topic}", groupId = "${app.manage.kafka.group-id}-index")
     public void consumeIndexBuild(String payload) {
         try {
 

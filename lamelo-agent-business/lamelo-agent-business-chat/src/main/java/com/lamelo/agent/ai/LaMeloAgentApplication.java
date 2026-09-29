@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @description: 启动类
  * @author: 阿星不是程序员
  **/
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.lamelo.agent")
 public class LaMeloAgentApplication {
 
     public static void main(String[] args) {
