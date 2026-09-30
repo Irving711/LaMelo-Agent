@@ -1,13 +1,13 @@
 package com.lamelo.agent.ai.manage.mq;
 
 import com.lamelo.agent.ai.manage.config.DocumentManageProperties;
-import java.nio.charset.StandardCharsets;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.connection.stream.ReadOffset;
+import org.springframework.data.redis.core.StreamOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -33,13 +33,11 @@ public class RedisStreamConfiguration {
     }
 
     private void createGroup(StringRedisTemplate template, String stream, String group) {
+        StreamOperations<String, String, String> streams = template.opsForStream();
         try {
-            template.execute((RedisCallback<Object>) connection -> connection.execute("XGROUP",
-                bytes("CREATE"), bytes(stream), bytes(group), bytes("0"), bytes("MKSTREAM")));
+            streams.createGroup(stream, ReadOffset.from("0"), group);
         } catch (RuntimeException exception) {
-            if (!isBusyGroup(exception)) {
-                throw exception;
-            }
+            if (!isBusyGroup(exception)) throw exception;
         }
     }
 
@@ -50,9 +48,5 @@ public class RedisStreamConfiguration {
             }
         }
         return false;
-    }
-
-    private byte[] bytes(String value) {
-        return value.getBytes(StandardCharsets.UTF_8);
     }
 }

@@ -1,27 +1,24 @@
 package com.lamelo.agent.ai.manage.mq;
 
-import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.data.redis.connection.RedisConnection;
-import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.connection.stream.ReadOffset;
+import org.springframework.data.redis.core.StreamOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class RedisStreamConfigurationTest {
 
     @Test
     void createsBothGroupsWithMkstream() throws Exception {
         StringRedisTemplate template = mock(StringRedisTemplate.class);
-        RedisConnection connection = mock(RedisConnection.class);
-        doAnswer(invocation -> ((RedisCallback<?>) invocation.getArgument(0)).doInRedis(connection))
-            .when(template).execute(any(RedisCallback.class));
+        @SuppressWarnings("unchecked")
+        StreamOperations<String, String, String> streams = mock(StreamOperations.class);
+        when(template.<String, String>opsForStream()).thenReturn(streams);
         RedisStreamProperties properties = new RedisStreamProperties();
         properties.setParseStream("test:parse");
         properties.setIndexStream("test:index");
@@ -31,27 +28,25 @@ class RedisStreamConfigurationTest {
         InitializingBean groups = new RedisStreamConfiguration().redisStreamGroups(template, properties);
         groups.afterPropertiesSet();
 
-        verify(connection).execute(eq("XGROUP"), eq(bytes("CREATE")), eq(bytes("test:parse")),
-            eq(bytes("parse-group")), eq(bytes("0")), eq(bytes("MKSTREAM")));
-        verify(connection).execute(eq("XGROUP"), eq(bytes("CREATE")), eq(bytes("test:index")),
-            eq(bytes("index-group")), eq(bytes("0")), eq(bytes("MKSTREAM")));
+        verify(streams).createGroup("test:parse", ReadOffset.from("0"), "parse-group");
+        verify(streams).createGroup("test:index", ReadOffset.from("0"), "index-group");
     }
 
     @Test
-    void ignoresOnlyBusyGroupAndPropagatesOtherRedisErrors() throws Exception {
+    void ignoresBusyGroupAndPropagatesOtherRedisErrors() throws Exception {
         StringRedisTemplate template = mock(StringRedisTemplate.class);
+        @SuppressWarnings("unchecked")
+        StreamOperations<String, String, String> streams = mock(StreamOperations.class);
+        when(template.<String, String>opsForStream()).thenReturn(streams);
         RedisStreamProperties properties = new RedisStreamProperties();
-        doAnswer(invocation -> { throw new IllegalStateException("BUSYGROUP Consumer Group name already exists"); })
-            .doAnswer(invocation -> { throw new IllegalStateException("connection refused"); })
-            .when(template).execute(any(RedisCallback.class));
+        when(streams.createGroup(properties.getParseStream(), ReadOffset.from("0"), properties.getParseGroup()))
+            .thenThrow(new IllegalStateException("BUSYGROUP Consumer Group name already exists"));
+        when(streams.createGroup(properties.getIndexStream(), ReadOffset.from("0"), properties.getIndexGroup()))
+            .thenThrow(new IllegalStateException("connection refused"));
 
         InitializingBean groups = new RedisStreamConfiguration().redisStreamGroups(template, properties);
 
         assertThatThrownBy(groups::afterPropertiesSet).isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("connection refused");
-    }
-
-    private byte[] bytes(String value) {
-        return value.getBytes(StandardCharsets.UTF_8);
     }
 }
