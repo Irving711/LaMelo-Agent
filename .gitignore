@@ -14,6 +14,8 @@ docs/**/*.md
 # 本地文档与生产环境私有配置不提交到远程仓库
 /docs/
 /lamelo-agent-business/lamelo-agent-business-chat/src/main/resources/application-prod.yaml
+/scripts/README-qdrant-migration.md
+/scripts/README-redis-stream-migration.md
 
 ### Agent ###
 cookasyncagent/

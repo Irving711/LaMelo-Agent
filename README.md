@@ -1,6 +1,6 @@
 # LaMelo Agent
 
-LaMelo Agent 是一个 Java 多模块 AI Agent 与 RAG 项目，包含对话工作台、文档知识库和管理控制台。仓库基于 Nexus Agent 上游项目改造项目名、Maven 坐标、Java 包名、数据库对象名和运行资源标识；业务 API 路径与主要业务流程保持原样。
+LaMelo Agent 是一个 Java 多模块 AI Agent 与 RAG 项目，包含对话工作台、文档知识库和管理控制台。
 
 [GitHub 仓库](https://github.com/Irving711/LaMelo-Agent) · [Apache License 2.0](LICENSE)
 
