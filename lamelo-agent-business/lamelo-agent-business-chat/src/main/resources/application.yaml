@@ -13,47 +13,55 @@ spring:
   ai:
     openai:
       # OpenAI 兼容协议的服务入口。
-      base-url: ${LAMELO_AGENT_OPENAI_BASE_URL}
+      base-url: ${BASE_URL}
       # OpenAI 兼容协议的访问密钥。
-      # 正式环境建议改成环境变量注入，不要把真实密钥直接写在配置文件里。
-      api-key: ${LAMELO_AGENT_ALI_BAI_LIAN_API_KEY}
+      api-key: ${API_KEY}
       chat:
         options:
           # 对话模型名称。
-          model: ${LAMELO_AGENT_CHAT_MODEL}
+          model: ${CHAT_MODEL}
           # 回答温度，数值越高结果越发散。
           temperature: 0.5
           # 单次回答允许输出的最大 token 数。
           maxTokens: 5000
       embedding:
         # embedding 单独指定 base-url，便于后续把对话模型和向量模型拆到不同网关时直接切换。
-        base-url: ${LAMELO_AGENT_EMBEDDING_BASE_URL:${LAMELO_AGENT_OPENAI_BASE_URL}}
+        base-url: ${EMBEDDING_BASE_URL}
         # embedding 调用使用的密钥。
-        api-key: ${LAMELO_AGENT_ALI_BAI_LIAN_API_KEY}
+        api-key: ${EMBEDDING_API_KEY}
         options:
           # 向量模型名称。
-          # 当前文档切块向量化时，会直接使用这里配置的模型，不再额外在 manage 下重复维护一份。
-          model: ${LAMELO_AGENT_EMBEDDING_MODEL}
+          model: ${EMBEDDING_MODEL}
   main:
+    # 允许同名 Bean 后定义覆盖先定义。Redisson 与 Spring Data Redis 各自注册 RedisConnectionFactory 时需要该开关。
     allow-bean-definition-overriding: true
   mvc:
     pathmatch:
+      # 使用 Ant 风格路径匹配，兼容 /** 通配写法；Spring Boot 3 默认的 PathPatternParser 不支持该语法。
       matching-strategy: ant_path_matcher
     servlet:
+      # 启动时预初始化 DispatcherServlet，跳过首次请求的初始化延迟。
       load-on-startup: 1
   jackson:
+    # 序列化时间统一按东八区输出，避免服务器时区不同导致时间偏差。
     time-zone: GMT+8
+    # 后端返回给前端的时间统一为该格式，不返回时间戳由前端自行转换。
     date-format: yyyy-MM-dd HH:mm:ss
 mybatis-plus:
+  # XML 映射文件位置。项目当前 SQL 全部写在 Mapper 接口注解与 BaseMapper 里，未使用 XML，该配置为后续预留。
   mapper-locations: classpath:mapper/*.xml
   configuration:
+    # 关闭 MyBatis 一级缓存作用域，语句执行完即清空。会话间复用查询结果可能读到脏数据。
     local-cache-scope: statement
 
 app:
   admin-auth:
+    # 后台登录 token 有效期，单位分钟。JWT 无状态，签发后无法中途吊销，修改该值只影响新签发的 token。
     token-expire-minutes: ${LAMELO_AGENT_ADMIN_TOKEN_EXPIRE_MINUTES:720}
   preview-mode:
+    # 只读展示模式开关。开启后按 PreviewModeInterceptor 的 BLOCKED_PATHS 白名单拦截写操作，用于对外演示。
     enabled: ${LAMELO_AGENT_PREVIEW_MODE_ENABLED:false}
+    # 命中拦截时的提示文案。拦截器返回 HTTP 200 + 业务错误码，由前端按正常响应解析并展示该文案。
     message: ${LAMELO_AGENT_PREVIEW_MODE_MESSAGE:线上环境为只读展示模式，仅开放浏览与检索能力}
   chat:
     # 是否开启“推荐追问问题”能力。
