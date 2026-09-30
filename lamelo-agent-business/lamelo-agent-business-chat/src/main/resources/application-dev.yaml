@@ -1,6 +1,6 @@
 prefix:
   distinction:
-    # 保留当前本地开发环境使用的 bucket、Kafka topic 和 ES 索引名称。
+    # 本地开发环境的资源命名空间。
     name: ${LAMELO_AGENT_NAMESPACE:lamelo-agent}
 
 spring:
@@ -30,8 +30,6 @@ spring:
       pool-name: ${prefix.distinction.name}-hikari
       maximum-pool-size: ${LAMELO_AGENT_MYSQL_POOL_MAXIMUM_SIZE:10}
       minimum-idle: ${LAMELO_AGENT_MYSQL_POOL_MINIMUM_IDLE:2}
-  kafka:
-    bootstrap-servers: ${LAMELO_AGENT_KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}
 
 mybatis-plus:
   configuration:
@@ -47,8 +45,9 @@ app:
       endpoint: ${LAMELO_AGENT_MINIO_ENDPOINT:http://127.0.0.1:9000}
       access-key: ${LAMELO_AGENT_MINIO_ACCESS_KEY:minioadmin}
       secret-key: ${LAMELO_AGENT_MINIO_SECRET_KEY:minioadmin}
-    kafka:
-      auto-create-topics: ${LAMELO_AGENT_KAFKA_AUTO_CREATE_TOPICS:true}
+    mq:
+      redis-stream:
+        enabled: true
     qdrant:
       endpoint: ${LAMELO_AGENT_QDRANT_ENDPOINT:http://127.0.0.1:6333}
       api-key: ${LAMELO_AGENT_QDRANT_API_KEY:}

@@ -22,7 +22,7 @@ public enum DocumentManageCode {
 
     INDEX_TASK_RUNNING(20007, "当前文档已有索引任务正在执行"),
 
-    KAFKA_SEND_FAILED(20008, "异步任务投递失败"),
+    TASK_PUBLISH_FAILED(20008, "异步任务投递失败"),
 
     DOCUMENT_PARSE_FAILED(20009, "文件解析失败"),
 

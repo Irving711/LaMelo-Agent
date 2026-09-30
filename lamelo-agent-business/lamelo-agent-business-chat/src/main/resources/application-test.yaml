@@ -20,8 +20,6 @@ spring:
       pool-name: ${prefix.distinction.name}-hikari
       maximum-pool-size: ${LAMELO_AGENT_MYSQL_POOL_MAXIMUM_SIZE:10}
       minimum-idle: ${LAMELO_AGENT_MYSQL_POOL_MINIMUM_IDLE:2}
-  kafka:
-    bootstrap-servers: ${LAMELO_AGENT_KAFKA_BOOTSTRAP_SERVERS}
 
 app:
   admin-auth:
@@ -33,8 +31,9 @@ app:
       endpoint: ${LAMELO_AGENT_MINIO_ENDPOINT}
       access-key: ${LAMELO_AGENT_MINIO_ACCESS_KEY}
       secret-key: ${LAMELO_AGENT_MINIO_SECRET_KEY}
-    kafka:
-      auto-create-topics: ${LAMELO_AGENT_KAFKA_AUTO_CREATE_TOPICS:false}
+    mq:
+      redis-stream:
+        enabled: true
     qdrant:
       endpoint: ${LAMELO_AGENT_QDRANT_ENDPOINT}
       api-key: ${LAMELO_AGENT_QDRANT_API_KEY:}

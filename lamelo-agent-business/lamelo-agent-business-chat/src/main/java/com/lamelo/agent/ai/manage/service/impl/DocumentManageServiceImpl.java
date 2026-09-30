@@ -36,7 +36,7 @@ import com.lamelo.agent.ai.manage.mapper.LaMeloAgentDocumentStrategyStepMapper;
 import com.lamelo.agent.ai.manage.mapper.LaMeloAgentDocumentTaskLogMapper;
 import com.lamelo.agent.ai.manage.mapper.LaMeloAgentDocumentTaskMapper;
 import com.lamelo.agent.ai.manage.mapper.LaMeloAgentTopicDocumentRelationMapper;
-import com.lamelo.agent.ai.manage.mq.DocumentKafkaProducer;
+import com.lamelo.agent.ai.manage.mq.DocumentTaskPublisher;
 import com.lamelo.agent.ai.manage.mq.message.DocumentIndexBuildMessage;
 import com.lamelo.agent.ai.manage.mq.message.DocumentParseRouteMessage;
 import com.lamelo.agent.ai.manage.service.DocumentManageService;
@@ -95,6 +95,8 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -155,7 +157,7 @@ public class DocumentManageServiceImpl implements DocumentManageService {
 
     private final ObjectProvider<KnowledgeRouteIndexService> knowledgeRouteIndexServiceProvider;
 
-    private final DocumentKafkaProducer kafkaProducer;
+    private final DocumentTaskPublisher taskPublisher;
 
     private final TransactionTemplate transactionTemplate;
     
@@ -239,7 +241,7 @@ public class DocumentManageServiceImpl implements DocumentManageService {
                 document.getParseStatus(), document.getStrategyStatus(), document.getIndexStatus());
         });
 
-        kafkaProducer.sendParseRoute(new DocumentParseRouteMessage(documentId, taskId));
+        taskPublisher.sendParseRoute(new DocumentParseRouteMessage(documentId, taskId));
 
         return uploadVo;
     }
@@ -587,7 +589,13 @@ public class DocumentManageServiceImpl implements DocumentManageService {
             "索引构建任务已创建，等待异步执行。",
             Map.of("planId", dto.getPlanId(), "strategySnapshot", plan.getStrategySnapshot()));
 
-        kafkaProducer.sendIndexBuild(new DocumentIndexBuildMessage(document.getId(), taskId, dto.getPlanId()));
+        DocumentIndexBuildMessage message = new DocumentIndexBuildMessage(document.getId(), taskId, dto.getPlanId());
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                taskPublisher.sendIndexBuild(message);
+            }
+        });
 
         return new DocumentIndexBuildVo(
             document.getId(),

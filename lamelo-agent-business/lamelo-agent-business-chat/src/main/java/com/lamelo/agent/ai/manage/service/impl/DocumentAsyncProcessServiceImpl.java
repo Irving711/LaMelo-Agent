@@ -112,6 +112,11 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
     @Override
 
     public void handleParseRoute(Long documentId, Long taskId) {
+        handleParseRoute(documentId, taskId, null);
+    }
+
+    @Override
+    public void handleParseRoute(Long documentId, Long taskId, String leaseOwner) {
 
         LaMeloAgentDocument document = documentMapper.selectById(documentId);
         LaMeloAgentDocumentTask task = taskMapper.selectById(taskId);
@@ -126,11 +131,13 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
             task.setTaskStatus(DocumentTaskStatusEnum.RUNNING.getCode());
             task.setCurrentStage(DocumentTaskStageEnum.CONTENT_PARSE.getCode());
             task.setStartTime(startTime);
-            taskMapper.updateById(task);
+            updateTask(task, leaseOwner);
 
+            assertLease(taskId, leaseOwner);
             document.setParseStatus(DocumentParseStatusEnum.PARSING.getCode());
             documentMapper.updateById(document);
 
+            assertLease(taskId, leaseOwner);
             taskLogService.saveLog(taskId, documentId,
                 DocumentTaskStageEnum.CONTENT_PARSE.getCode(),
                 DocumentTaskEventTypeEnum.START.getCode(),
@@ -141,20 +148,25 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
                 Map.of("objectName", document.getObjectName()));
 
             byte[] fileBytes = storageService.downloadObject(document.getObjectName());
+            assertLease(taskId, leaseOwner);
             DocumentAnalysisResult analysisResult = parserService.parse(fileBytes, document.getOriginalFileName(),
                 document.getMimeType(), DocumentFileTypeEnum.getRc(document.getFileType()));
 
+            assertLease(taskId, leaseOwner);
             String parseTextPath = storageService.uploadParsedText(documentId, analysisResult.getParsedText());
 
+            assertLease(taskId, leaseOwner);
             List<LaMeloAgentDocumentStructureNode> structureNodes = structureNodeService.replaceDocumentNodes(
                 documentId,
                 taskId,
                 analysisResult.getStructureNodes()
             );
             int structureNodeCount = structureNodes.size();
-            syncNavigationArtifacts(documentId, taskId, structureNodes);
+            syncNavigationArtifacts(documentId, taskId, structureNodes, leaseOwner);
+            assertLease(taskId, leaseOwner);
             documentProfileService.generateProfile(documentId, analysisResult, structureNodes);
 
+            assertLease(taskId, leaseOwner);
             taskLogService.saveLog(taskId, documentId,
                 DocumentTaskStageEnum.CONTENT_PARSE.getCode(),
                 DocumentTaskEventTypeEnum.COMPLETE.getCode(),
@@ -171,8 +183,9 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
                 ));
 
             task.setCurrentStage(DocumentTaskStageEnum.STRATEGY_ROUTE.getCode());
-            taskMapper.updateById(task);
+            updateTask(task, leaseOwner);
 
+            assertLease(taskId, leaseOwner);
             DocumentStrategyPlanDraft planDraft = strategyService.recommendStrategy(document, analysisResult);
             Long planId = uidGenerator.getUid();
             int planVersion = getNextPlanVersion(documentId);
@@ -187,9 +200,11 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
             plan.setStrategySnapshot(planDraft.getStrategySnapshot());
             plan.setRecommendReason(planDraft.getRecommendReason());
             plan.setStatus(BusinessStatus.YES.getCode());
+            assertLease(taskId, leaseOwner);
             planMapper.insert(plan);
 
             for (int index = 0; index < planDraft.getParentSteps().size(); index++) {
+                assertLease(taskId, leaseOwner);
                 DocumentStrategyStepDraft draft = planDraft.getParentSteps().get(index);
                 LaMeloAgentDocumentStrategyStep step = new LaMeloAgentDocumentStrategyStep();
                 step.setId(uidGenerator.getUid());
@@ -206,6 +221,7 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
                 stepMapper.insert(step);
             }
             for (int index = 0; index < planDraft.getChildSteps().size(); index++) {
+                assertLease(taskId, leaseOwner);
                 DocumentStrategyStepDraft draft = planDraft.getChildSteps().get(index);
                 LaMeloAgentDocumentStrategyStep step = new LaMeloAgentDocumentStrategyStep();
                 step.setId(uidGenerator.getUid());
@@ -233,9 +249,11 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
             document.setCurrentPlanId(planId);
             document.setLastParseTaskId(taskId);
             document.setStructureNodeCount(structureNodeCount);
+            assertLease(taskId, leaseOwner);
             documentMapper.updateById(document);
 
-            finishTaskSuccess(task, DocumentTaskStageEnum.STRATEGY_ROUTE.getCode(), startTime);
+            finishTaskSuccess(task, DocumentTaskStageEnum.STRATEGY_ROUTE.getCode(), startTime, leaseOwner);
+            assertLease(taskId, leaseOwner);
             taskLogService.saveLog(taskId, documentId,
                 DocumentTaskStageEnum.STRATEGY_ROUTE.getCode(),
                 DocumentTaskEventTypeEnum.RECOMMEND_STRATEGY.getCode(),
@@ -251,13 +269,16 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
                     "recommendReason", planDraft.getRecommendReason()));
         }
         catch (Exception exception) {
+            if (exception instanceof LeaseLostException) throw (LeaseLostException) exception;
+            assertLease(taskId, leaseOwner);
             log.error("异步解析文档失败，documentId={}, taskId={}", documentId, taskId, exception);
 
             document.setParseStatus(DocumentParseStatusEnum.PARSE_FAILED.getCode());
             document.setParseErrorMsg(exception.getMessage());
             documentMapper.updateById(document);
 
-            failTask(task, startTime, exception, DocumentTaskStageEnum.CONTENT_PARSE.getCode());
+            failTask(task, startTime, exception, DocumentTaskStageEnum.CONTENT_PARSE.getCode(), leaseOwner);
+            assertLease(taskId, leaseOwner);
             taskLogService.saveLog(taskId, documentId,
                 DocumentTaskStageEnum.CONTENT_PARSE.getCode(),
                 DocumentTaskEventTypeEnum.FAILED.getCode(),
@@ -271,6 +292,11 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
 
     @Override
     public void handleIndexBuild(Long documentId, Long taskId, Long planId) {
+        handleIndexBuild(documentId, taskId, planId, null);
+    }
+
+    @Override
+    public void handleIndexBuild(Long documentId, Long taskId, Long planId, String leaseOwner) {
 
         LaMeloAgentDocument document = documentMapper.selectById(documentId);
         LaMeloAgentDocumentTask task = taskMapper.selectById(taskId);
@@ -288,13 +314,16 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
             task.setTaskStatus(DocumentTaskStatusEnum.RUNNING.getCode());
             task.setCurrentStage(DocumentTaskStageEnum.CHUNK_EXECUTE.getCode());
             task.setStartTime(startTime);
-            taskMapper.updateById(task);
+            updateTask(task, leaseOwner);
 
+            assertLease(taskId, leaseOwner);
             document.setIndexStatus(DocumentIndexStatusEnum.BUILDING.getCode());
             documentMapper.updateById(document);
 
+            assertLease(taskId, leaseOwner);
             updateStepExecuteStatus(planId, DocumentStrategyExecuteStatusEnum.EXECUTING.getCode());
 
+            assertLease(taskId, leaseOwner);
             taskLogService.saveLog(taskId, documentId,
                 DocumentTaskStageEnum.CHUNK_EXECUTE.getCode(),
                 DocumentTaskEventTypeEnum.START.getCode(),
@@ -304,12 +333,16 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
                 "开始执行切块流水线。",
                 Map.of("strategySnapshot", plan.getStrategySnapshot()));
 
+            assertLease(taskId, leaseOwner);
             String parsedText = storageService.downloadText(document.getParseTextPath());
 
+            assertLease(taskId, leaseOwner);
             List<ParentBlockCandidate> parentBlockCandidateList = strategyService.buildParentBlocks(document, plan, stepList, parsedText);
 
+            assertLease(taskId, leaseOwner);
             updateStepExecuteStatus(planId, DocumentStrategyExecuteStatusEnum.EXECUTE_SUCCESS.getCode());
 
+            assertLease(taskId, leaseOwner);
             taskLogService.saveLog(taskId, documentId,
                 DocumentTaskStageEnum.CHUNK_EXECUTE.getCode(),
                 DocumentTaskEventTypeEnum.COMPLETE.getCode(),
@@ -323,7 +356,7 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
                 ));
 
             task.setCurrentStage(DocumentTaskStageEnum.CHUNK_POST_PROCESS.getCode());
-            taskMapper.updateById(task);
+            updateTask(task, leaseOwner);
 
             List<ParentBlockCandidate> finalParentBlockList = parentBlockCandidateList.stream()
                 .filter(item -> item != null
@@ -332,6 +365,7 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
                     && item.getChildChunks().stream().anyMatch(child -> StrUtil.isNotBlank(child.getText())))
                 .toList();
 
+            assertLease(taskId, leaseOwner);
             taskLogService.saveLog(taskId, documentId,
                 DocumentTaskStageEnum.CHUNK_POST_PROCESS.getCode(),
                 DocumentTaskEventTypeEnum.COMPLETE.getCode(),
@@ -349,15 +383,18 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
             List<LaMeloAgentDocumentChunk> chunkEntityList = entityBundle.childChunks();
 
             for (LaMeloAgentDocumentParentBlock parentBlock : parentBlockEntityList) {
+                assertLease(taskId, leaseOwner);
                 parentBlockMapper.insert(parentBlock);
             }
             for (LaMeloAgentDocumentChunk chunk : chunkEntityList) {
+                assertLease(taskId, leaseOwner);
                 chunkMapper.insert(chunk);
             }
 
             task.setCurrentStage(DocumentTaskStageEnum.VECTORIZE.getCode());
-            taskMapper.updateById(task);
+            updateTask(task, leaseOwner);
 
+            assertLease(taskId, leaseOwner);
             taskLogService.saveLog(taskId, documentId,
                 DocumentTaskStageEnum.VECTORIZE.getCode(),
                 DocumentTaskEventTypeEnum.START.getCode(),
@@ -373,17 +410,21 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
                     "vectorStoreType", DocumentVectorStoreTypeEnum.QDRANT.getMsg(),
                     "parentCount", parentBlockEntityList.size()));
 
+            assertLease(taskId, leaseOwner);
             vectorGateway.vectorize(chunkEntityList);
 
             DocumentKeywordSearchGateway keywordSearchGateway = keywordSearchGatewayProvider.getIfAvailable();
             if (keywordSearchGateway != null) {
+                assertLease(taskId, leaseOwner);
                 keywordSearchGateway.indexChunks(chunkEntityList);
             }
 
             for (LaMeloAgentDocumentChunk chunk : chunkEntityList) {
+                assertLease(taskId, leaseOwner);
                 chunkMapper.updateById(chunk);
             }
 
+            assertLease(taskId, leaseOwner);
             taskLogService.saveLog(taskId, documentId,
                 DocumentTaskStageEnum.VECTORIZE.getCode(),
                 DocumentTaskEventTypeEnum.COMPLETE.getCode(),
@@ -400,16 +441,19 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
                     "parentCount", parentBlockEntityList.size()));
 
             task.setCurrentStage(DocumentTaskStageEnum.STORE_COMPLETE.getCode());
-            taskMapper.updateById(task);
+            updateTask(task, leaseOwner);
 
+            assertLease(taskId, leaseOwner);
             plan.setPlanStatus(DocumentPlanStatusEnum.EXECUTED.getCode());
             planMapper.updateById(plan);
 
             document.setIndexStatus(DocumentIndexStatusEnum.BUILD_SUCCESS.getCode());
             document.setLastIndexTaskId(taskId);
+            assertLease(taskId, leaseOwner);
             documentMapper.updateById(document);
 
-            finishTaskSuccess(task, DocumentTaskStageEnum.STORE_COMPLETE.getCode(), startTime);
+            finishTaskSuccess(task, DocumentTaskStageEnum.STORE_COMPLETE.getCode(), startTime, leaseOwner);
+            assertLease(taskId, leaseOwner);
             taskLogService.saveLog(taskId, documentId,
                 DocumentTaskStageEnum.STORE_COMPLETE.getCode(),
                 DocumentTaskEventTypeEnum.COMPLETE.getCode(),
@@ -420,19 +464,24 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
                 Map.of("taskId", taskId, "chunkCount", chunkEntityList.size(), "parentCount", parentBlockEntityList.size()));
         }
         catch (Exception exception) {
+            if (exception instanceof LeaseLostException) throw (LeaseLostException) exception;
+            assertLease(taskId, leaseOwner);
             log.error("异步构建索引失败，documentId={}, taskId={}, planId={}", documentId, taskId, planId, exception);
 
             document.setIndexStatus(DocumentIndexStatusEnum.BUILD_FAILED.getCode());
             documentMapper.updateById(document);
 
+            assertLease(taskId, leaseOwner);
             chunkMapper.update(null, new LambdaUpdateWrapper<LaMeloAgentDocumentChunk>()
                 .eq(LaMeloAgentDocumentChunk::getTaskId, taskId)
                 .eq(LaMeloAgentDocumentChunk::getStatus, BusinessStatus.YES.getCode())
                 .set(LaMeloAgentDocumentChunk::getVectorStatus, DocumentVectorStatusEnum.VECTOR_FAILED.getCode())
                 .set(LaMeloAgentDocumentChunk::getVectorStoreType, DocumentVectorStoreTypeEnum.QDRANT.getCode()));
 
+            assertLease(taskId, leaseOwner);
             updateStepExecuteStatus(planId, DocumentStrategyExecuteStatusEnum.EXECUTE_FAILED.getCode());
-            failTask(task, startTime, exception, task.getCurrentStage());
+            failTask(task, startTime, exception, task.getCurrentStage(), leaseOwner);
+            assertLease(taskId, leaseOwner);
             taskLogService.saveLog(taskId, documentId,
                 task.getCurrentStage(),
                 DocumentTaskEventTypeEnum.FAILED.getCode(),
@@ -568,7 +617,8 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
         return planList.isEmpty() ? 1 : planList.get(0).getPlanVersion() + 1;
     }
 
-    private void finishTaskSuccess(LaMeloAgentDocumentTask task, Integer stage, Date startTime) {
+    private void finishTaskSuccess(LaMeloAgentDocumentTask task, Integer stage, Date startTime,
+                                   String leaseOwner) {
 
         Date finishTime = new Date();
         task.setTaskStatus(DocumentTaskStatusEnum.SUCCESS.getCode());
@@ -577,18 +627,20 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
         task.setCostMillis(finishTime.getTime() - startTime.getTime());
         task.setErrorCode(null);
         task.setErrorMsg(null);
-        taskMapper.updateById(task);
+        updateTask(task, leaseOwner);
     }
 
     private void syncNavigationArtifacts(Long documentId,
                                          Long parseTaskId,
-                                         List<LaMeloAgentDocumentStructureNode> structureNodes) {
+                                         List<LaMeloAgentDocumentStructureNode> structureNodes,
+                                         String leaseOwner) {
         log.info("开始同步导航产物: documentId={}, parseTaskId={}, structureNodeCount={}",
             documentId,
             parseTaskId,
             structureNodes == null ? 0 : structureNodes.size());
         DocumentNavigationIndexService navigationIndexService = navigationIndexServiceProvider.getIfAvailable();
         if (navigationIndexService != null) {
+            assertLease(parseTaskId, leaseOwner);
             log.info("同步导航 Qdrant 索引: documentId={}, parseTaskId={}", documentId, parseTaskId);
             navigationIndexService.reindexDocumentNodes(documentId, parseTaskId, structureNodes);
         }
@@ -597,6 +649,7 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
         }
         DocumentStructureGraphProjectionService graphProjectionService = graphProjectionServiceProvider.getIfAvailable();
         if (graphProjectionService != null && graphProjectionService.enabled()) {
+            assertLease(parseTaskId, leaseOwner);
             log.info("同步结构图投影: documentId={}, parseTaskId={}", documentId, parseTaskId);
             graphProjectionService.projectToGraph(documentId, parseTaskId);
         }
@@ -605,7 +658,8 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
         }
     }
 
-    private void failTask(LaMeloAgentDocumentTask task, Date startTime, Exception exception, Integer currentStage) {
+    private void failTask(LaMeloAgentDocumentTask task, Date startTime, Exception exception,
+                          Integer currentStage, String leaseOwner) {
 
         Date finishTime = new Date();
         task.setTaskStatus(DocumentTaskStatusEnum.FAILED.getCode());
@@ -614,7 +668,34 @@ public class DocumentAsyncProcessServiceImpl implements DocumentAsyncProcessServ
         task.setCostMillis(finishTime.getTime() - startTime.getTime());
         task.setErrorCode("TASK_FAILED");
         task.setErrorMsg(exception.getMessage());
-        taskMapper.updateById(task);
+        updateTask(task, leaseOwner);
+    }
+
+    private void assertLease(Long taskId, String leaseOwner) {
+        if (leaseOwner != null && taskMapper.hasValidLease(taskId, leaseOwner) != 1) {
+            throw new LeaseLostException(taskId);
+        }
+    }
+
+    private void updateTask(LaMeloAgentDocumentTask task, String leaseOwner) {
+        if (leaseOwner == null) {
+            taskMapper.updateById(task);
+            return;
+        }
+        int updated = taskMapper.update(task, new LambdaUpdateWrapper<LaMeloAgentDocumentTask>()
+            .eq(LaMeloAgentDocumentTask::getId, task.getId())
+            .eq(LaMeloAgentDocumentTask::getLeaseOwner, leaseOwner)
+            .apply("lease_until > NOW()")
+            .in(LaMeloAgentDocumentTask::getTaskStatus,
+                DocumentTaskStatusEnum.NEW.getCode(), DocumentTaskStatusEnum.RUNNING.getCode(),
+                DocumentTaskStatusEnum.FAILED.getCode()));
+        if (updated != 1) throw new LeaseLostException(task.getId());
+    }
+
+    private static final class LeaseLostException extends IllegalStateException {
+        private LeaseLostException(Long taskId) {
+            super("Document task lease lost: " + taskId);
+        }
     }
 
     private int estimateTokenCount(String text) {

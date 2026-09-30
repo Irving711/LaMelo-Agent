@@ -2,7 +2,9 @@ package com.lamelo.agent.ai.manage.data;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -42,6 +44,15 @@ public class LaMeloAgentDocumentTask extends BaseTableData {
     private String strategySnapshot;
 
     private Integer retryCount;
+
+    @TableField(updateStrategy = FieldStrategy.NEVER)
+    private String leaseOwner;
+
+    @TableField(updateStrategy = FieldStrategy.NEVER)
+    private Date leaseUntil;
+
+    @TableField(updateStrategy = FieldStrategy.NEVER)
+    private Integer attemptCount;
 
     private Date startTime;
 

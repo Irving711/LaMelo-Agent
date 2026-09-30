@@ -30,7 +30,7 @@ LaMelo Agent 是一个 Java 多模块 AI Agent 与 RAG 项目，包含对话工�
 
 - JDK 17、Maven 3.8+
 - Node.js 与 npm（前端）
-- MySQL、Redis、Kafka、MinIO、Qdrant；Neo4j 可选，默认关闭
+- MySQL、Redis、MinIO、Qdrant；Neo4j 可选，默认关闭
 - 模型服务密钥；联网搜索和 Rerank 按需配置
 
 应用默认监听 `9082`。后端主应用通过 `application.yaml` 与 `application-{dev,test,prod}.yaml` 区分公共、开发、测试和生产配置；当前默认 profile 为 `prod`，本地开发请显式设置 `SPRING_PROFILES_ACTIVE=dev`。测试环境所需的环境变量名称可查看仓库中的 `application-test.yaml`。
@@ -50,7 +50,7 @@ $env:SPRING_PROFILES_ACTIVE = "dev"
 开发环境默认 MySQL 库为 `lamelo_agent`。新环境按顺序执行：
 
 1. 在 MySQL 执行 `sql/Mysql/create_database_mysql.sql` 和 `sql/Mysql/create_table_mysql.sql`。
-2. 启动 Redis、Kafka、MinIO、Qdrant 和 MySQL；本地地址与账号默认值位于 `application-dev.yaml`。Qdrant 需支持稀疏向量的 IDF 修正和 Query API。
+2. 启动 Redis、MinIO、Qdrant 和 MySQL；本地地址与账号默认值位于 `application-dev.yaml`。Qdrant 需支持稀疏向量的 IDF 修正和 Query API。已有数据库先执行 `sql/Mysql/migrate_document_task_redis_stream.sql`，再启动 Redis Streams 消费者。
 3. 如需保留旧 pgvector 与 Elasticsearch 索引，先使用 `scripts/migrate_qdrant.py` 重建并核对数据，再切换 Qdrant 集合别名；操作说明见 `scripts/README-qdrant-migration.md`。
 4. 启动后端和前端：
 

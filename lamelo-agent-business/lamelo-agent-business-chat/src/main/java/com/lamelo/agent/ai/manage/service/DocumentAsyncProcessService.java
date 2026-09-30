@@ -10,5 +10,9 @@ public interface DocumentAsyncProcessService {
 
     void handleParseRoute(Long documentId, Long taskId);
 
+    void handleParseRoute(Long documentId, Long taskId, String leaseOwner);
+
     void handleIndexBuild(Long documentId, Long taskId, Long planId);
+
+    void handleIndexBuild(Long documentId, Long taskId, Long planId, String leaseOwner);
 }

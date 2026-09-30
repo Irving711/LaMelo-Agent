@@ -16,8 +16,6 @@ public class DocumentManageProperties {
 
     private Minio minio = new Minio();
 
-    private Kafka kafka = new Kafka();
-
     private Chunk chunk = new Chunk();
 
     private StructureParsing structureParsing = new StructureParsing();
@@ -34,14 +32,6 @@ public class DocumentManageProperties {
         private String bucketName = "lamelo-agent-document";
         private String objectPrefix = "rag/document";
         private String parsedTextPrefix = "rag/parsed-text";
-    }
-
-    @Data
-    public static class Kafka {
-        private String parseTopic = "lamelo-agent-document-parse-route";
-        private String indexTopic = "lamelo-agent-document-index-build";
-        private String groupId = "lamelo-agent-document-manage";
-        private Boolean autoCreateTopics = Boolean.TRUE;
     }
 
     @Data
