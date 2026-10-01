@@ -20,6 +20,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.Map;
+import java.time.Duration;
 
 /**
  * @program: 企业级别深度设计 AI Agent。添加 阿星不是程序员 微信，添加时备注 super 来获取项目的完整资料
@@ -59,13 +60,14 @@ public class RecommendationService {
         }
 
         try {
+            long timeoutMs = Math.max(properties.getRecommendationTimeoutMs(), 1L);
             return CompletableFuture.supplyAsync(
                     () -> generateRecommendationsInternal(question, answer, recentExchanges, traceRecorder),
 
                     recommendationExecutorService
                 )
 
-                .orTimeout(Math.max(properties.getRecommendationTimeoutMs(), 1L), TimeUnit.MILLISECONDS)
+                .orTimeout(timeoutMs + 1000L, TimeUnit.MILLISECONDS)
                 .exceptionally(exception -> {
                     log.warn("生成推荐问题超时或失败: {}", exception.getMessage());
                     return List.of();
@@ -105,7 +107,10 @@ public class RecommendationService {
 
         try {
 
-            String content = observedChatModelService.callText("recommendation", null, prompt, traceRecorder);
+            String content = observedChatModelService.streamText("recommendation", null, prompt, traceRecorder)
+                .collectList()
+                .map(parts -> String.join("", parts))
+                .block(Duration.ofMillis(Math.max(properties.getRecommendationTimeoutMs(), 1L)));
 
             if (StrUtil.isBlank(content)) {
                 return List.of();
