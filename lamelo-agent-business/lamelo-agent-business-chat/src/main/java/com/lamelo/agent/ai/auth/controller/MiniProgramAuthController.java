@@ -2,6 +2,7 @@ package com.lamelo.agent.ai.auth.controller;
 
 import com.lamelo.agent.ai.auth.dto.AdminLoginRequest;
 import com.lamelo.agent.ai.auth.dto.BindWechatRequest;
+import com.lamelo.agent.ai.auth.dto.SetCredentialsRequest;
 import com.lamelo.agent.ai.auth.dto.WechatCodeLoginRequest;
 import com.lamelo.agent.ai.auth.service.MiniProgramAuthService;
 import com.lamelo.agent.ai.auth.vo.MiniProgramLoginVo;
@@ -33,9 +34,15 @@ public class MiniProgramAuthController {
     }
 
     @PostMapping("/bind")
-    public ApiResponse<Void> bind(@Valid @RequestBody BindWechatRequest request, HttpServletRequest currentRequest) {
-        authService.bind(request, currentRequest);
-        return ApiResponse.ok();
+    public ApiResponse<MiniProgramLoginVo> bind(@Valid @RequestBody BindWechatRequest request,
+                                                HttpServletRequest currentRequest) {
+        return ApiResponse.ok(authService.bind(request, currentRequest));
+    }
+
+    @PostMapping("/credentials")
+    public ApiResponse<MiniProgramLoginVo> setCredentials(@Valid @RequestBody SetCredentialsRequest request,
+                                                          HttpServletRequest currentRequest) {
+        return ApiResponse.ok(authService.setCredentials(request, currentRequest));
     }
 
     @PostMapping("/unbind")

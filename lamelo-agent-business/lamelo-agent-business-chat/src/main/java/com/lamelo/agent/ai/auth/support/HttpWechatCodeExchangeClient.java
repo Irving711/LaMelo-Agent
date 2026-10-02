@@ -1,9 +1,11 @@
 package com.lamelo.agent.ai.auth.support;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.lamelo.agent.ai.auth.config.AdminAuthProperties;
 import com.lamelo.agent.exception.LaMeloAgentFrameException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -11,6 +13,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.util.List;
 
 @Component
 public class HttpWechatCodeExchangeClient implements WechatCodeExchangeClient {
@@ -31,7 +34,15 @@ public class HttpWechatCodeExchangeClient implements WechatCodeExchangeClient {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(properties.getWechatConnectTimeoutMs());
         factory.setReadTimeout(properties.getWechatReadTimeoutMs());
-        return RestClient.builder().requestFactory(factory).build();
+        // 微信 jscode2session 实际返回 Content-Type: text/plain，
+        // 默认 Jackson 转换器只接受 application/json，会导致反序列化失败并误报“微信登录服务暂不可用”。
+        MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+        converter.setSupportedMediaTypes(List.of(MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN,
+            new MediaType("text", "javascript")));
+        return RestClient.builder()
+            .requestFactory(factory)
+            .messageConverters(converters -> converters.add(0, converter))
+            .build();
     }
 
     @Override
@@ -53,13 +64,13 @@ public class HttpWechatCodeExchangeClient implements WechatCodeExchangeClient {
                 .uri(requestUri)
                 .retrieve()
                 .body(WechatResponse.class);
-            if (response == null || response.errcode != null && response.errcode != 0) {
+            if (response == null || response.errcode() != null && response.errcode() != 0) {
                 throw new LaMeloAgentFrameException(401, "微信登录码无效");
             }
-            if (response.openid == null || response.openid.isBlank()) {
+            if (response.openid() == null || response.openid().isBlank()) {
                 throw new LaMeloAgentFrameException(401, "微信登录码无效");
             }
-            return new WechatSession(response.openid, response.unionid);
+            return new WechatSession(response.openid(), response.unionid());
         } catch (LaMeloAgentFrameException exception) {
             throw exception;
         } catch (RestClientException exception) {
@@ -69,11 +80,7 @@ public class HttpWechatCodeExchangeClient implements WechatCodeExchangeClient {
         }
     }
 
-    private static class WechatResponse {
-        private Integer errcode;
-        @JsonProperty("errmsg")
-        private String errmsg;
-        private String openid;
-        private String unionid;
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record WechatResponse(Integer errcode, String errmsg, String openid, String unionid) {
     }
 }

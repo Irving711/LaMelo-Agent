@@ -6,7 +6,7 @@
   "scripts": {
     "dev:mp-weixin": "uni -p mp-weixin",
     "build:mp-weixin": "node scripts/check-config.mjs --production && uni build -p mp-weixin",
-    "build:mp-weixin:dev": "uni build -p mp-weixin",
+    "build:mp-weixin:dev": "uni build -p mp-weixin --mode development",
     "test:unit": "vitest run",
     "check-config": "node scripts/check-config.mjs"
   },
@@ -16,6 +16,7 @@
     "@dcloudio/uni-mp-weixin": "3.0.0-alpha-5020620260914001",
     "@vue/server-renderer": "3.4.21",
     "@vue/shared": "3.4.21",
+    "marked": "^16.4.1",
     "uni-ui": "1.0.0",
     "vue": "3.4.21"
   },
@@ -24,6 +25,7 @@
     "@types/node": "24.10.0",
     "@vue/test-utils": "^2.4.6",
     "jsdom": "^26.0.0",
+    "less": "^4.9.1",
     "sass": "^1.83.4",
     "typescript": "^5.7.2",
     "vite": "^5.2.8",

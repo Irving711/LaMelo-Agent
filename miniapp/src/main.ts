@@ -1,3 +1,4 @@
+import './uni-global'
 import { createSSRApp } from 'vue'
 import App from './App.vue'
 import './uni.scss'

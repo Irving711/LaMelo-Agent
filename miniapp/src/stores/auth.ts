@@ -5,6 +5,7 @@ type UniNavigation = {
   navigateTo?: (options: { url: string }) => void
   redirectTo?: (options: { url: string }) => void
   switchTab?: (options: { url: string }) => void
+  reLaunch?: (options: { url: string }) => void
 }
 
 export interface AuthStore {
@@ -13,7 +14,8 @@ export interface AuthStore {
   loading: boolean
   loginWithWechat(code: string): Promise<MiniProgramProfile>
   loginWithPassword(username: string, password: string): Promise<MiniProgramProfile>
-  bindWechat(payload: { username: string; password: string; code: string }): Promise<void>
+  bindExistingAccount(payload: { username: string; password: string }): Promise<MiniProgramProfile>
+  setCredentials(payload: { username: string; password: string }): Promise<MiniProgramProfile>
   unbindWechat(password: string): Promise<void>
   logout(): void
   restoreSession(): Promise<boolean>
@@ -28,6 +30,15 @@ function uni(): UniNavigation {
   return ((globalThis as { uni?: UniNavigation }).uni || {})
 }
 
+const TAB_BAR_ROUTES = ['/pages/chat/index', '/pages/sessions/index', '/pages/profile/index']
+
+function enterApp(route = '/pages/chat/index') {
+  const target = route && route.includes('/pages/') ? route : '/pages/chat/index'
+  const path = target.split('?')[0]
+  if (TAB_BAR_ROUTES.includes(path)) uni().reLaunch?.({ url: target })
+  else uni().redirectTo?.({ url: target })
+}
+
 function assignProfile(store: AuthStore, profile: MiniProgramProfile): MiniProgramProfile {
   store.token = profile.token
   store.profile = { ...profile, roles: Array.isArray(profile.roles) ? profile.roles : [] }
@@ -39,7 +50,6 @@ function assignProfile(store: AuthStore, profile: MiniProgramProfile): MiniProgr
 
 export function createAuthStore(options: { api?: AuthApi } = {}): AuthStore {
   const api = options.api || authApi
-  let pendingBinding = false
   const store = {
     token: getToken(),
     profile: getProfile<MiniProgramProfile>(),
@@ -48,24 +58,30 @@ export function createAuthStore(options: { api?: AuthApi } = {}): AuthStore {
     get isAdmin() { return this.profile?.roles?.some((role) => ['ADMIN', 'ROLE_ADMIN'].includes(String(role).toUpperCase())) || false },
     async loginWithWechat(code: string) {
       this.loading = true
-      try { const profile = assignProfile(this, await api.wechatLogin(code)); pendingBinding = profile.needsBinding || !profile.token; if (profile.token && !pendingBinding) this.consumeRequestedRoute(); return profile } finally { this.loading = false }
+      try {
+        const profile = assignProfile(this, await api.wechatLogin(code))
+        if (profile.token && !this.consumeRequestedRoute()) enterApp()
+        return profile
+      } finally { this.loading = false }
     },
     async loginWithPassword(username: string, password: string) {
       this.loading = true
-      try { const profile = assignProfile(this, await api.passwordLogin(username, password)); if (profile.token && !pendingBinding && !profile.needsBinding) this.consumeRequestedRoute(); return profile } finally { this.loading = false }
+      try {
+        const profile = assignProfile(this, await api.passwordLogin(username, password))
+        if (profile.token && !this.consumeRequestedRoute()) enterApp()
+        return profile
+      } finally { this.loading = false }
     },
-    async bindWechat(payload: { username: string; password: string; code: string }) {
-      await api.bindWechat(payload)
-      if (this.profile) {
-        this.profile = { ...this.profile, token: this.token, needsBinding: false }
-        const { token: _token, ...safeProfile } = this.profile
-        setProfile(safeProfile)
-      }
-      pendingBinding = false
-      if (this.token && !this.consumeRequestedRoute()) uni().redirectTo?.({ url: '/pages/chat/index' })
+    async bindExistingAccount(payload: { username: string; password: string }) {
+      const profile = assignProfile(this, await api.bindExistingAccount(payload))
+      if (profile.token && !this.consumeRequestedRoute()) enterApp()
+      return profile
+    },
+    async setCredentials(payload: { username: string; password: string }) {
+      return assignProfile(this, await api.setCredentials(payload))
     },
     async unbindWechat(password: string) {
-      await api.unbindWechat(password, this.profile?.username || undefined)
+      await api.unbindWechat(password)
       if (this.profile) {
         this.profile = { ...this.profile, token: this.token, needsBinding: true }
         const { token: _token, ...safeProfile } = this.profile
@@ -75,7 +91,6 @@ export function createAuthStore(options: { api?: AuthApi } = {}): AuthStore {
     logout() {
       this.token = null
       this.profile = null
-      pendingBinding = false
       clearAuthStorage()
     },
     async restoreSession() {
@@ -84,8 +99,7 @@ export function createAuthStore(options: { api?: AuthApi } = {}): AuthStore {
       if (stored) {
         const { token: _token, ...safeProfile } = stored
         this.profile = { ...safeProfile, token: this.token }
-        pendingBinding = Boolean(this.profile.needsBinding)
-      } else { this.profile = null; pendingBinding = false }
+      } else { this.profile = null }
       return Boolean(this.token && this.profile)
     },
     async guard(route = '') {
@@ -100,7 +114,7 @@ export function createAuthStore(options: { api?: AuthApi } = {}): AuthStore {
     consumeRequestedRoute() {
       const route = consumeLoginRoute()
       if (!route) return false
-      if (route.includes('/pages/')) uni().redirectTo?.({ url: route })
+      if (route.includes('/pages/')) enterApp(route)
       return true
     }
   } as AuthStore

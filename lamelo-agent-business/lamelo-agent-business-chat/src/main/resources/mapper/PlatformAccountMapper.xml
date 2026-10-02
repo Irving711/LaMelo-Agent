@@ -38,6 +38,12 @@
         SET enabled = #{enabled}, edit_time = NOW()
         WHERE id = #{id} AND status = 1
     </update>
+    <!-- 同时更新用户名与密码哈希 -->
+    <update id="updateUsernameAndPasswordById">
+        UPDATE lamelo_agent_account
+        SET username = #{username}, password_hash = #{passwordHash}, edit_time = NOW()
+        WHERE id = #{id} AND status = 1
+    </update>
     <select id="selectRoleIdByCode" resultType="long">
         SELECT id FROM lamelo_agent_role WHERE role_code = #{roleCode} AND status = 1 LIMIT 1
     </select>

@@ -27,9 +27,24 @@ describe('profile binding state', () => {
     await Promise.resolve()
     expect(wrapper.text()).toContain('微信已绑定')
     await wrapper.find('input').setValue('password')
-    await wrapper.find('button').trigger('click')
+    await wrapper.find('[data-testid="unbind"]').trigger('click')
     await new Promise((resolve) => setTimeout(resolve, 0))
     await wrapper.vm.$nextTick()
-    expect(wrapper.text()).toContain('未绑定微信')
+    expect(wrapper.text()).toContain('未设置密码')
+  })
+
+  it('shows the set-credentials entry when the account has no usable password', async () => {
+    ;(globalThis as any).uni = {
+      getStorageSync: vi.fn((key: string) => key === 'lamelo-miniapp-token' ? 'token' : { username: 'wx_openid', roles: [], needsBinding: true }),
+      setStorageSync: vi.fn(),
+      removeStorageSync: vi.fn(),
+      showToast: vi.fn()
+    }
+    const wrapper = mount(ProfilePage)
+    await Promise.resolve()
+    await Promise.resolve()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="set-credentials"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="unbind"]').exists()).toBe(false)
   })
 })

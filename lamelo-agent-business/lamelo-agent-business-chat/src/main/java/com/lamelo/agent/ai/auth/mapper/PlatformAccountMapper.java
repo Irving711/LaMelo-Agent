@@ -13,6 +13,9 @@ public interface PlatformAccountMapper {
     int insertAccount(PlatformAccount account);
     int updatePasswordHashById(@Param("id") Long id, @Param("passwordHash") String passwordHash);
     int updateEnabledById(@Param("id") Long id, @Param("enabled") boolean enabled);
+    /** 同时更新账号的用户名与密码哈希（用于自动建号后补设凭据）。 */
+    int updateUsernameAndPasswordById(@Param("id") Long id, @Param("username") String username,
+                                      @Param("passwordHash") String passwordHash);
     Long selectRoleIdByCode(@Param("roleCode") String roleCode);
     int insertRole(@Param("roleCode") String roleCode, @Param("roleName") String roleName);
     int insertAccountRole(@Param("accountId") Long accountId, @Param("roleId") Long roleId);

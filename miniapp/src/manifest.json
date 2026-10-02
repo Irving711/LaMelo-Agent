@@ -5,8 +5,9 @@
   "versionName": "0.1.0",
   "versionCode": "100",
   "transformPx": false,
+  "vueVersion": "3",
   "mp-weixin": {
-    "appid": "wx0000000000000000",
+    "appid": "wx1e9ae7472beaa062",
     "setting": {
       "urlCheck": false
     },

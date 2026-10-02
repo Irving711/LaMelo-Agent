@@ -34,6 +34,12 @@
             (openid, unionid, user_id, create_time, edit_time, status)
         VALUES (#{openid}, #{unionid}, #{userId}, NOW(), NOW(), 1)
     </insert>
+    <!-- 原地改挂微信身份到目标账号（不可先删后插，唯一索引会冲突） -->
+    <update id="updateUserIdById">
+        UPDATE lamelo_agent_wechat_identity
+        SET user_id = #{userId}, edit_time = NOW()
+        WHERE id = #{id} AND status = 1
+    </update>
     <update id="logicalDeleteByUserId">
         UPDATE lamelo_agent_wechat_identity
         SET status = 0, edit_time = NOW()

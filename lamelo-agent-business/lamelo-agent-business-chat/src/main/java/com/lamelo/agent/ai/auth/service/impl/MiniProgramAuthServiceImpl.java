@@ -6,6 +6,7 @@ import com.lamelo.agent.ai.auth.data.PlatformAccount;
 import com.lamelo.agent.ai.auth.data.WechatIdentity;
 import com.lamelo.agent.ai.auth.dto.AdminLoginRequest;
 import com.lamelo.agent.ai.auth.dto.BindWechatRequest;
+import com.lamelo.agent.ai.auth.dto.SetCredentialsRequest;
 import com.lamelo.agent.ai.auth.dto.WechatCodeLoginRequest;
 import com.lamelo.agent.ai.auth.mapper.PlatformAccountMapper;
 import com.lamelo.agent.ai.auth.mapper.WechatIdentityMapper;
@@ -17,6 +18,8 @@ import com.lamelo.agent.ai.auth.support.WechatSession;
 import com.lamelo.agent.ai.auth.vo.MiniProgramLoginVo;
 import com.lamelo.agent.exception.LaMeloAgentFrameException;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -29,6 +32,10 @@ import java.util.List;
 @Service
 public class MiniProgramAuthServiceImpl implements MiniProgramAuthService {
     private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
+
+    /** 无可用密码的哨兵哈希：BCrypt 永远无法匹配，用于表示"账号未设置密码"。 */
+    private static final String UNUSABLE_PASSWORD_HASH = "!";
+    private static final Logger log = LoggerFactory.getLogger(MiniProgramAuthServiceImpl.class);
 
     private final AdminAuthProperties properties;
     private final AdminJwtTokenService tokenService;
@@ -50,6 +57,7 @@ public class MiniProgramAuthServiceImpl implements MiniProgramAuthService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public MiniProgramLoginVo wechatLogin(WechatCodeLoginRequest request) {
         String code = require(request == null ? null : request.getCode(), "微信登录码不能为空");
         WechatSession session = exchangeClient.exchange(code);
@@ -58,13 +66,15 @@ public class MiniProgramAuthServiceImpl implements MiniProgramAuthService {
         if (identity == null && StrUtil.isNotBlank(session.unionid())) {
             identity = identityMapper.selectActiveByUnionid(session.unionid());
         }
+        PlatformAccount account;
         if (identity == null) {
-            return new MiniProgramLoginVo(null, null, Collections.emptyList(), true,
-                properties.getTokenExpireMinutes());
-        }
-        PlatformAccount account = accountMapper.selectActiveById(identity.getUserId());
-        if (account == null || !Boolean.TRUE.equals(account.getEnabled())) {
-            throw new LaMeloAgentFrameException(401, "账号已停用");
+            // 首次登录：自动建号，直接发放 token，不再要求用户填写账号密码
+            account = autoProvision(session);
+        } else {
+            account = accountMapper.selectActiveById(identity.getUserId());
+            if (account == null || !Boolean.TRUE.equals(account.getEnabled())) {
+                throw new LaMeloAgentFrameException(401, "账号已停用");
+            }
         }
         return tokenVo(account);
     }
@@ -78,38 +88,67 @@ public class MiniProgramAuthServiceImpl implements MiniProgramAuthService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void bind(BindWechatRequest request, HttpServletRequest currentRequest) {
+    public MiniProgramLoginVo bind(BindWechatRequest request, HttpServletRequest currentRequest) {
         String currentUsername = AdminRequestContext.resolveUsername(currentRequest);
         if (StrUtil.isBlank(currentUsername)) {
             throw new LaMeloAgentFrameException(401, "请先登录");
         }
+        PlatformAccount current = accountMapper.selectActiveByUsername(currentUsername);
+        if (current == null) {
+            throw new LaMeloAgentFrameException(401, "请先登录");
+        }
+        WechatIdentity identity = identityMapper.selectActiveByUserId(current.getId());
+        if (identity == null) {
+            throw new LaMeloAgentFrameException(400, "当前会话未绑定微信，请先微信登录");
+        }
         String username = require(request == null ? null : request.getUsername(), "账号不能为空");
-        if (!StrUtil.equals(currentUsername, username)) {
-            throw new LaMeloAgentFrameException(403, "当前登录账号与绑定账号不一致");
+        PlatformAccount target = authenticate(username, require(request.getPassword(), "密码不能为空"));
+        if (target.getId().equals(current.getId())) {
+            throw new LaMeloAgentFrameException(400, "当前微信已绑定该账号");
         }
-        PlatformAccount account = authenticate(username,
-            require(request.getPassword(), "密码不能为空"));
-        WechatSession session = exchangeClient.exchange(require(request.getCode(), "微信登录码不能为空"));
-        String openid = require(session == null ? null : session.openid(), "微信登录码无效");
-        WechatIdentity duplicate = identityMapper.selectActiveByOpenid(openid);
-        if (duplicate == null && StrUtil.isNotBlank(session.unionid())) {
-            duplicate = identityMapper.selectActiveByUnionid(session.unionid());
+        if (identityMapper.selectActiveByUserId(target.getId()) != null) {
+            throw new LaMeloAgentFrameException(409, "该账号已绑定其他微信");
         }
-        if (duplicate != null) {
-            throw new LaMeloAgentFrameException(409, "该微信已绑定其他账号");
+        // 必须原地改挂：先删后插会撞 active_openid / active_unionid 唯一索引
+        identityMapper.updateUserIdById(identity.getId(), target.getId());
+        log.info("微信身份 {} 已从账号 {} 改挂到账号 {}", identity.getOpenid(), current.getId(), target.getId());
+        return tokenVo(target);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public MiniProgramLoginVo setCredentials(SetCredentialsRequest request, HttpServletRequest currentRequest) {
+        String currentUsername = AdminRequestContext.resolveUsername(currentRequest);
+        if (StrUtil.isBlank(currentUsername)) {
+            throw new LaMeloAgentFrameException(401, "请先登录");
         }
-        WechatIdentity identity = new WechatIdentity();
-        identity.setOpenid(openid);
-        identity.setUnionid(session.unionid());
-        identity.setUserId(account.getId());
+        PlatformAccount account = accountMapper.selectActiveByUsername(currentUsername);
+        if (account == null) {
+            throw new LaMeloAgentFrameException(401, "请先登录");
+        }
+        if (hasUsablePassword(account)) {
+            throw new LaMeloAgentFrameException(409, "账号已设置密码，不能重复设置");
+        }
+        String username = require(request == null ? null : request.getUsername(), "账号不能为空");
+        String password = require(request == null ? null : request.getPassword(), "密码不能为空");
+        PlatformAccount existing = accountMapper.selectActiveByUsername(username);
+        if (existing != null && !existing.getId().equals(account.getId())) {
+            throw new LaMeloAgentFrameException(409, "账号已存在");
+        }
         try {
-            identityMapper.insertIdentity(identity);
+            accountMapper.updateUsernameAndPasswordById(account.getId(), username,
+                PASSWORD_ENCODER.encode(password));
         } catch (RuntimeException exception) {
             if (isDuplicateKey(exception)) {
-                throw new LaMeloAgentFrameException(409, "该微信已绑定其他账号");
+                throw new LaMeloAgentFrameException(409, "账号已存在");
             }
             throw exception;
         }
+        PlatformAccount updated = accountMapper.selectActiveById(account.getId());
+        if (updated == null) {
+            throw new LaMeloAgentFrameException(500, "账号更新失败");
+        }
+        return tokenVo(updated);
     }
 
     @Override
@@ -131,7 +170,7 @@ public class MiniProgramAuthServiceImpl implements MiniProgramAuthService {
             roles = Collections.emptyList();
         }
         return new MiniProgramLoginVo(tokenService.generateToken(account.getUsername()), account.getUsername(),
-            roles, identityMapper.selectActiveByUserId(account.getId()) == null, properties.getTokenExpireMinutes());
+            roles, !hasUsablePassword(account), properties.getTokenExpireMinutes());
     }
 
     private PlatformAccount authenticate(String username, String password) {
@@ -193,9 +232,55 @@ public class MiniProgramAuthServiceImpl implements MiniProgramAuthService {
         return persisted;
     }
 
+    /**
+     * 首次微信登录时自动创建平台账号与微信身份。
+     * 用户名固定为 wx_&lt;openid&gt;，密码写入哨兵值表示尚未设置密码，不分配任何角色。
+     */
+    private PlatformAccount autoProvision(WechatSession session) {
+        String openid = session.openid();
+        String username = "wx_" + openid;
+        PlatformAccount account = new PlatformAccount();
+        account.setUsername(username);
+        account.setPasswordHash(UNUSABLE_PASSWORD_HASH);
+        account.setEnabled(true);
+        try {
+            accountMapper.insertAccount(account);
+        } catch (RuntimeException exception) {
+            if (!isDuplicateKey(exception)) {
+                throw exception;
+            }
+        }
+        PlatformAccount persisted = accountMapper.selectActiveByUsername(username);
+        if (persisted == null) {
+            throw new LaMeloAgentFrameException(500, "账号创建失败");
+        }
+        WechatIdentity identity = new WechatIdentity();
+        identity.setOpenid(openid);
+        identity.setUnionid(session.unionid());
+        identity.setUserId(persisted.getId());
+        try {
+            identityMapper.insertIdentity(identity);
+        } catch (RuntimeException exception) {
+            if (!isDuplicateKey(exception)) {
+                throw exception;
+            }
+        }
+        return persisted;
+    }
+
+    /** 账号是否已设置可用密码：哨兵值或空值都视为未设置。 */
+    private boolean hasUsablePassword(PlatformAccount account) {
+        String hash = account == null ? null : account.getPasswordHash();
+        return StrUtil.isNotBlank(hash) && hash.startsWith("$2");
+    }
+
     private boolean passwordMatches(String password, String hash) {
         if (StrUtil.isBlank(hash)) {
             return StrUtil.equals(password, properties.getPassword());
+        }
+        if (!hash.startsWith("$2")) {
+            // 哨兵哈希等非 BCrypt 值：不可用于密码登录
+            return false;
         }
         try {
             return PASSWORD_ENCODER.matches(password, hash);

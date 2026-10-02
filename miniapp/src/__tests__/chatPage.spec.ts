@@ -1,9 +1,28 @@
 import { mount } from '@vue/test-utils'
 import MessageList from '../components/chat/MessageList.vue'
+import ChatComposer from '../components/chat/ChatComposer.vue'
+import StreamStatus from '../components/chat/StreamStatus.vue'
 import CitationList from '../components/chat/CitationList.vue'
 import SessionList from '../components/session/SessionList.vue'
 
 describe('ordinary user chat components', () => {
+  it('does not show generation status copy', () => {
+    expect(mount(StreamStatus, { props: { status: 'streaming' } }).text()).toBe('')
+    expect(mount(StreamStatus, { props: { status: 'completed' } }).text()).toBe('')
+  })
+  it('uses the imported YM bubble for streamed Markdown answers', () => {
+    const wrapper = mount(MessageList, { props: { messages: [{ id: 'a1', role: 'assistant', content: '**加粗**', status: 'streaming' }], streaming: true } })
+    expect(wrapper.find('.ym-bubble--left').exists()).toBe(true)
+    expect(wrapper.find('.markdown-wrapper').exists()).toBe(true)
+  })
+
+  it('uses the YM sender for submit and cancel while retaining the document selector', async () => {
+    const wrapper = mount(ChatComposer, {
+      props: { mode: 'DOCUMENT', selectedDocumentId: 'd1', modes: [{ value: 'DOCUMENT', label: '指定文档' }], knowledgeOptions: [{ documentId: 'd1', documentName: '指南' }], loading: true }
+    })
+    expect(wrapper.find('.ym-sender').exists()).toBe(true)
+    expect(wrapper.text()).toContain('指南')
+  })
   it('renders normalized messages and emits retry and stop actions', async () => {
     const wrapper = mount(MessageList, {
       props: {
@@ -17,9 +36,13 @@ describe('ordinary user chat components', () => {
     expect(wrapper.text()).toContain('问题')
     expect(wrapper.text()).toContain('答案')
     await wrapper.get('[data-testid="message-retry"]').trigger('click')
-    await wrapper.get('[data-testid="message-stop"]').trigger('click')
     expect(wrapper.emitted('retry')).toEqual([['a1']])
-    expect(wrapper.emitted('stop')).toEqual([[]])
+    expect(wrapper.find('[data-testid="message-stop"]').exists()).toBe(false)
+  })
+
+  it('does not render a loading bubble after an empty assistant message has finished', () => {
+    const wrapper = mount(MessageList, { props: { messages: [{ id: 'a1', role: 'assistant', content: '', status: 'completed' }] } })
+    expect(wrapper.find('.ym-bubble').exists()).toBe(false)
   })
 
   it('renders citations and emits the selected reference', async () => {

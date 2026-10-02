@@ -19,3 +19,8 @@ onHide(() => {})
   <slot name="empty" />
   <slot name="error" />
 </template>
+
+<style lang="less">
+@import './components/ym-chat-ai/styles/variables.less';
+@import './components/ym-chat-ai/styles/iconfont.css';
+</style>

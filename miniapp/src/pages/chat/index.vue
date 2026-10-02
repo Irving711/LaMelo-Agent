@@ -7,11 +7,9 @@ import { chatStore } from '../../stores/chat'
 import type { ChatMessageRecord } from '../../components/chat/MessageList.vue'
 import MessageList from '../../components/chat/MessageList.vue'
 import ChatComposer, { type KnowledgeOption } from '../../components/chat/ChatComposer.vue'
-import StreamStatus from '../../components/chat/StreamStatus.vue'
 import { notifyError } from '../../utils/notify'
 
 const conversationId = ref('')
-const draft = ref('')
 const mode = ref('AUTO_DOCUMENT')
 const selectedDocumentId = ref('')
 const knowledgeOptions = ref<KnowledgeOption[]>([])
@@ -46,7 +44,7 @@ async function loadConversation(id: string) {
 }
 function syncStream() {
   snapshot.value = chatStore.state
-  const answer = snapshot.value.answer
+  const answer = `${snapshot.value.thinking.length ? `<think>${snapshot.value.thinking.join('')}</think>` : ''}${snapshot.value.answer}`
   const index = messages.value.findIndex((message) => message.role === 'assistant' && message.id === 'stream-answer')
   if (index >= 0) messages.value[index] = { ...messages.value[index], content: answer, references: snapshot.value.references }
   else if (streaming.value || answer) messages.value.push({ id: 'stream-answer', role: 'assistant', content: answer, references: snapshot.value.references })
@@ -58,7 +56,7 @@ async function sendQuestion(value: string) {
   const question = String(value || '').trim()
   if (!question || streaming.value) return
   if (!conversationId.value) conversationId.value = createConversationId()
-  messages.value.push({ id: `${Date.now()}-q`, role: 'user', content: question }); messages.value.push({ id: 'stream-answer', role: 'assistant', content: '', status: 'streaming', references: [] }); draft.value = ''
+  messages.value.push({ id: `${Date.now()}-q`, role: 'user', content: question }); messages.value.push({ id: 'stream-answer', role: 'assistant', content: '', status: 'streaming', references: [] })
   const pending = chatStore.send({ question, conversationId: conversationId.value, chatMode: mode.value, ...(mode.value === 'DOCUMENT' && selectedDocumentId.value ? { selectedDocumentId: selectedDocumentId.value } : {}) })
   startPolling()
   try { await pending; syncStream(); const index = messages.value.findIndex((message) => message.id === 'stream-answer'); if (index >= 0) messages.value[index] = { ...messages.value[index], content: snapshot.value.answer, status: snapshot.value.status, references: snapshot.value.references } } catch (error) { notifyError(error, '发送失败'); const index = messages.value.findIndex((message) => message.id === 'stream-answer'); if (index >= 0) messages.value[index] = { ...messages.value[index], status: 'error' } } finally { stopPolling(); syncStream() }
@@ -71,12 +69,13 @@ onLoad((query) => { void authStore.guard(`/pages/chat/index${query?.conversation
 onBeforeUnmount(stopPolling)
 </script>
 <template>
-  <view class="page"><view class="header"><text class="title">对话</text><button class="new-button" @click="newConversation">新会话</button></view><view v-if="loading" class="loading">正在加载会话…</view><MessageList :messages="messages" :streaming="streaming" @retry="retry" @stop="stop" @open-reference="openReference" /><StreamStatus :status="snapshot.status" :error="snapshot.error" /><ChatComposer v-model="draft" v-model:mode="mode" v-model:selected-document-id="selectedDocumentId" :modes="modes" :knowledge-options="knowledgeOptions" :disabled="streaming" @submit="sendQuestion" /></view>
+  <view class="page"><view class="header"><text class="title">AI聊天助手</text><button class="new-button" @click="newConversation">新会话</button></view><view v-if="loading" class="loading">正在加载会话…</view><view v-if="!messages.length && !loading" class="welcome-card">👋 你好，我是 AI 问答助手，我可以帮助你回答问题。请直接发送消息开始对话！</view><MessageList :messages="messages" :streaming="streaming" @retry="retry" @stop="stop" @open-reference="openReference" /><ChatComposer v-model:mode="mode" v-model:selected-document-id="selectedDocumentId" :modes="modes" :knowledge-options="knowledgeOptions" :loading="streaming" @submit="sendQuestion" @stop="stop" /></view>
 </template>
 <style scoped>
-.page { min-height: 100vh; padding: 28rpx 32rpx 260rpx; box-sizing: border-box; }
-.header { display: flex; align-items: center; justify-content: space-between; }
-.title { font-size: 40rpx; font-weight: 600; }
-.new-button { width: auto; margin: 0; padding: 0 22rpx; color: var(--color-primary); background: transparent; border: 1rpx solid var(--color-primary); border-radius: 8rpx; font-size: 23rpx; }
+.page { min-height: 100vh; padding: 28rpx 32rpx 260rpx; box-sizing: border-box; background: linear-gradient(145deg, #e2fcfd 0%, #ced6fc 100%); }
+.header { display: flex; align-items: center; justify-content: space-between; min-height: 72rpx; padding: 0 20rpx; border-radius: 999rpx; background: rgba(255, 255, 255, 0.82); box-shadow: 0 4rpx 16rpx rgba(60, 104, 160, 0.08); }
+.title { font-size: 30rpx; font-weight: 600; color: #212529; }
+.new-button { width: auto; margin: 0; padding: 0 22rpx; color: #2476e3; background: rgba(255, 255, 255, 0.72); border: 1rpx solid rgba(36, 118, 227, 0.22); border-radius: 999rpx; font-size: 23rpx; }
+.welcome-card { margin-top: 24rpx; padding: 24rpx; color: #212529; line-height: 1.65; background: rgba(255, 255, 255, 0.9); border: 1rpx solid rgba(255, 255, 255, 0.72); border-radius: 12rpx; box-shadow: 0 4rpx 12rpx rgba(60, 104, 160, 0.1); }
 .loading { padding: 30rpx 0; color: var(--color-text-muted); text-align: center; }
 </style>

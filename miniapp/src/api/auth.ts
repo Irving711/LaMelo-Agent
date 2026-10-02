@@ -4,6 +4,7 @@ export interface MiniProgramProfile {
   token: string | null
   username: string | null
   roles: string[]
+  /** 账号尚未设置可用密码时为 true */
   needsBinding: boolean
   expireMinutes?: number
 }
@@ -11,8 +12,9 @@ export interface MiniProgramProfile {
 export interface AuthApi {
   wechatLogin(code: string): Promise<MiniProgramProfile>
   passwordLogin(username: string, password: string): Promise<MiniProgramProfile>
-  bindWechat(payload: { username: string; password: string; code: string }): Promise<void>
-  unbindWechat(password: string, username?: string): Promise<void>
+  bindExistingAccount(payload: { username: string; password: string }): Promise<MiniProgramProfile>
+  setCredentials(payload: { username: string; password: string }): Promise<MiniProgramProfile>
+  unbindWechat(password: string): Promise<void>
 }
 
 export const authApi: AuthApi = {
@@ -22,10 +24,13 @@ export const authApi: AuthApi = {
   passwordLogin(username, password) {
     return request<MiniProgramProfile>({ url: '/miniapp/auth/password-login', method: 'POST', data: { username, password }, dedupeKey: 'login-refresh' })
   },
-  bindWechat(payload) {
-    return request<void>({ url: '/miniapp/auth/bind', method: 'POST', data: payload })
+  bindExistingAccount(payload) {
+    return request<MiniProgramProfile>({ url: '/miniapp/auth/bind', method: 'POST', data: payload })
   },
-  unbindWechat(password, username) {
-    return request<void>({ url: '/miniapp/auth/unbind', method: 'POST', data: { username: username || '', password } })
+  setCredentials(payload) {
+    return request<MiniProgramProfile>({ url: '/miniapp/auth/credentials', method: 'POST', data: payload })
+  },
+  unbindWechat(password) {
+    return request<void>({ url: '/miniapp/auth/unbind', method: 'POST', data: { password } })
   }
 }

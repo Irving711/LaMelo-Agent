@@ -1,8 +1,13 @@
 {
+  "globalStyle": {
+    "navigationBarBackgroundColor": "#e2fcfd",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#e2fcfd"
+  },
   "pages": [
     { "path": "pages/auth/login", "style": { "navigationBarTitleText": "登录" } },
     { "path": "pages/auth/bind", "style": { "navigationBarTitleText": "绑定微信" } },
-    { "path": "pages/chat/index", "style": { "navigationBarTitleText": "对话" } },
+    { "path": "pages/chat/index", "style": { "navigationBarTitleText": "AI聊天助手", "navigationBarBackgroundColor": "#e2fcfd", "navigationBarTextStyle": "black" } },
     { "path": "pages/sessions/index", "style": { "navigationBarTitleText": "会话" } },
     { "path": "pages/profile/index", "style": { "navigationBarTitleText": "我的" } },
     { "path": "pages/admin/index", "style": { "navigationBarTitleText": "管理后台" } },
@@ -17,7 +22,7 @@
   "tabBar": {
     "color": "#6b7280",
     "selectedColor": "#2563eb",
-    "backgroundColor": "#ffffff",
+    "backgroundColor": "#eaf7ff",
     "borderStyle": "black",
     "list": [
       { "pagePath": "pages/chat/index", "text": "对话" },
