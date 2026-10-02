@@ -1,5 +1,8 @@
 package com.lamelo.agent.ai.manage.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lamelo.agent.exception.LaMeloAgentFrameException;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import com.lamelo.agent.ai.manage.dto.DocumentIndexBuildDto;
@@ -31,6 +34,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * @program: 企业级别深度设计 AI Agent。添加 阿星不是程序员 微信，添加时备注 super 来获取项目的完整资料
@@ -43,17 +47,35 @@ import org.springframework.web.multipart.MultipartFile;
 public class DocumentManageController {
 
     private final DocumentManageService documentManageService;
+    private final ObjectMapper objectMapper;
 
     public DocumentManageController(DocumentManageService documentManageService) {
+        this(documentManageService, new ObjectMapper());
+    }
+
+    @Autowired
+    public DocumentManageController(DocumentManageService documentManageService, ObjectMapper objectMapper) {
         this.documentManageService = documentManageService;
+        this.objectMapper = objectMapper;
     }
 
     @Operation(summary = "上传文档并投递解析任务")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<DocumentUploadVo> upload(@RequestPart("file") MultipartFile file,
-                                                @Valid @RequestPart(value = "meta", required = false) DocumentUploadDto dto) {
+                                                @RequestPart(value = "meta", required = false) String metaJson) {
 
-        return ApiResponse.ok(documentManageService.upload(file, dto == null ? new DocumentUploadDto() : dto));
+        return ApiResponse.ok(documentManageService.upload(file, parseUploadMetadata(metaJson)));
+    }
+
+    private DocumentUploadDto parseUploadMetadata(String metaJson) {
+        if (metaJson == null || metaJson.isBlank()) {
+            return new DocumentUploadDto();
+        }
+        try {
+            return objectMapper.readValue(metaJson, DocumentUploadDto.class);
+        } catch (JsonProcessingException exception) {
+            throw new LaMeloAgentFrameException(400, "上传元数据 JSON 无效");
+        }
     }
 
     @Operation(summary = "分页查询文档列表")

@@ -294,6 +294,26 @@ public class MybatisConversationArchiveStore implements ConversationArchiveStore
                                                          String keyword,
                                                          ChatQueryMode chatMode,
                                                          ChatTurnStatus latestTurnStatus) {
+        return listSessionRecordPageInternal(pageNo, pageSize, keyword, chatMode, latestTurnStatus, null, false);
+    }
+
+    @Override
+    public ConversationArchivePage listSessionRecordPageForClient(int pageNo,
+                                                                  int pageSize,
+                                                                  String keyword,
+                                                                  ChatQueryMode chatMode,
+                                                                  ChatTurnStatus latestTurnStatus,
+                                                                  Long accountId) {
+        return listSessionRecordPageInternal(pageNo, pageSize, keyword, chatMode, latestTurnStatus, accountId, true);
+    }
+
+    private ConversationArchivePage listSessionRecordPageInternal(int pageNo,
+                                                                  int pageSize,
+                                                                  String keyword,
+                                                                  ChatQueryMode chatMode,
+                                                                  ChatTurnStatus latestTurnStatus,
+                                                                  Long accountId,
+                                                                  boolean clientScope) {
         int resolvedPageNo = Math.max(pageNo, 1);
         int resolvedPageSize = Math.max(pageSize, 1);
 
@@ -301,6 +321,15 @@ public class MybatisConversationArchiveStore implements ConversationArchiveStore
             .orderByDesc(LaMeloAgentChatDialogue::getEditTime)
             .orderByDesc(LaMeloAgentChatDialogue::getId);
         applySessionPageFilters(wrapper, keyword, chatMode, latestTurnStatus);
+        if (clientScope) {
+            if (accountId == null) {
+                wrapper.notInSql(LaMeloAgentChatDialogue::getConversationId,
+                    "SELECT conversation_id FROM lamelo_agent_conversation_owner");
+            } else {
+                wrapper.inSql(LaMeloAgentChatDialogue::getConversationId,
+                    "SELECT conversation_id FROM lamelo_agent_conversation_owner WHERE account_id = " + accountId);
+            }
+        }
 
         Page<LaMeloAgentChatDialogue> page = new Page<>(resolvedPageNo, resolvedPageSize);
         IPage<LaMeloAgentChatDialogue> resultPage = dialogueMapper.selectPage(

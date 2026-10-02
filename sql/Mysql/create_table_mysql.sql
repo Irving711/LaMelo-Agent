@@ -521,3 +521,117 @@ CREATE TABLE IF NOT EXISTS lamelo_agent_chat_stage_benchmark (
     PRIMARY KEY (id),
     UNIQUE KEY uk_lamelo_agent_stage_benchmark_code_mode (stage_code, execution_mode)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='阶段性能基准表';
+
+-- 兼容已存在的 LaMelo 任务表：MySQL 8.0 不支持 ADD COLUMN IF NOT EXISTS。
+-- 新建任务表已包含以下三列；重复执行时仅补齐缺失列，不处理旧 Nexus 表。
+SET @lease_owner_ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE `lamelo_agent_document_task` ADD COLUMN `lease_owner` varchar(255) DEFAULT NULL COMMENT ''当前执行者''',
+        'SELECT 1')
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'lamelo_agent_document_task'
+      AND COLUMN_NAME = 'lease_owner'
+);
+PREPARE lease_owner_statement FROM @lease_owner_ddl;
+EXECUTE lease_owner_statement;
+DEALLOCATE PREPARE lease_owner_statement;
+
+SET @lease_until_ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE `lamelo_agent_document_task` ADD COLUMN `lease_until` datetime DEFAULT NULL COMMENT ''租约截止时间''',
+        'SELECT 1')
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'lamelo_agent_document_task'
+      AND COLUMN_NAME = 'lease_until'
+);
+PREPARE lease_until_statement FROM @lease_until_ddl;
+EXECUTE lease_until_statement;
+DEALLOCATE PREPARE lease_until_statement;
+
+SET @attempt_count_ddl = (
+    SELECT IF(COUNT(*) = 0,
+        'ALTER TABLE `lamelo_agent_document_task` ADD COLUMN `attempt_count` int DEFAULT NULL COMMENT ''租约获取次数''',
+        'SELECT 1')
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'lamelo_agent_document_task'
+      AND COLUMN_NAME = 'attempt_count'
+);
+PREPARE attempt_count_statement FROM @attempt_count_ddl;
+EXECUTE attempt_count_statement;
+DEALLOCATE PREPARE attempt_count_statement;
+
+-- 小程序账号、角色、会话归属与微信身份表（单文件部署入口）
+CREATE TABLE IF NOT EXISTS lamelo_agent_account (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '账号主键',
+    username VARCHAR(128) NOT NULL COMMENT '登录名',
+    password_hash VARCHAR(255) NOT NULL COMMENT 'BCrypt密码哈希',
+    enabled TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否启用',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    edit_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    status TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1:正常 0:删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_lamelo_agent_account_username (username),
+    KEY idx_lamelo_agent_account_status (status, enabled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='平台账号';
+
+CREATE TABLE IF NOT EXISTS lamelo_agent_role (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '角色主键',
+    role_code VARCHAR(64) NOT NULL COMMENT '角色编码',
+    role_name VARCHAR(128) NOT NULL COMMENT '角色名称',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    edit_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    status TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1:正常 0:删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_lamelo_agent_role_code (role_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='平台角色';
+
+CREATE TABLE IF NOT EXISTS lamelo_agent_account_role (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '关系主键',
+    account_id BIGINT NOT NULL COMMENT '账号id',
+    role_id BIGINT NOT NULL COMMENT '角色id',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    edit_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    status TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1:正常 0:删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_lamelo_agent_account_role (account_id, role_id),
+    KEY idx_lamelo_agent_account_role_role (role_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='账号角色关系';
+
+CREATE TABLE IF NOT EXISTS lamelo_agent_conversation_owner (
+    conversation_id VARCHAR(64) NOT NULL COMMENT '业务会话编号',
+    account_id BIGINT NOT NULL COMMENT '所属平台账号',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (conversation_id),
+    KEY idx_lamelo_agent_conversation_owner_account (account_id, conversation_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='小程序会话归属';
+
+CREATE TABLE IF NOT EXISTS lamelo_agent_wechat_identity (
+    id BIGINT NOT NULL AUTO_INCREMENT COMMENT '身份主键',
+    openid VARCHAR(128) NOT NULL COMMENT '微信小程序openid',
+    unionid VARCHAR(128) DEFAULT NULL COMMENT '微信开放平台unionid',
+    user_id BIGINT NOT NULL COMMENT '平台账号id',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    edit_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    status TINYINT(1) NOT NULL DEFAULT 1 COMMENT '1:正常 0:删除',
+    active_openid VARCHAR(128) GENERATED ALWAYS AS (CASE WHEN status = 1 THEN openid ELSE NULL END) STORED,
+    active_unionid VARCHAR(128) GENERATED ALWAYS AS (CASE WHEN status = 1 THEN unionid ELSE NULL END) STORED,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_lamelo_agent_wechat_identity_active_openid (active_openid),
+    UNIQUE KEY uk_lamelo_agent_wechat_identity_active_unionid (active_unionid),
+    KEY idx_lamelo_agent_wechat_identity_user (user_id, status),
+    KEY idx_lamelo_agent_wechat_identity_active (status, openid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='微信身份绑定';
+
+-- 仅初始化角色，不写入公开默认管理员密码。
+INSERT INTO lamelo_agent_role (role_code, role_name, create_time, edit_time, status)
+VALUES ('ADMIN', '管理员', NOW(), NOW(), 1)
+ON DUPLICATE KEY UPDATE role_name = VALUES(role_name), status = 1, edit_time = NOW();
+
+-- 清理旧版本曾写入的公开默认哈希；管理员账号由 application.yaml 配置首次登录时创建或恢复。
+UPDATE lamelo_agent_account
+SET enabled = 0, edit_time = NOW()
+WHERE username = 'admin'
+  AND password_hash = '$2a$10$J4R3O070wmA4LFufwJ.nuugjqxkW0vDt79IEr88TRjxWlrk3voLIi';

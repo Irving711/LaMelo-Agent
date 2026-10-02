@@ -482,19 +482,25 @@ public class BusinessChatService {
     }
 
     public ConversationSessionListVo listSessions(ConversationSessionListQueryDto dto) {
+        return listSessionsInternal(dto, null, false);
+    }
+
+    public ConversationSessionListVo listSessionsForClient(ConversationSessionListQueryDto dto, Long accountId) {
+        return listSessionsInternal(dto, accountId, true);
+    }
+
+    private ConversationSessionListVo listSessionsInternal(ConversationSessionListQueryDto dto,
+                                                           Long accountId,
+                                                           boolean clientScope) {
         int pageNo = parsePositiveInt(dto == null ? null : dto.getPageNo(), 1);
         int pageSize = parsePositiveInt(dto == null ? null : dto.getPageSize(), 20);
         String keyword = normalizeOptionalText(dto == null ? null : dto.getKeyword());
         ChatQueryMode chatMode = parseOptionalChatMode(dto == null ? null : dto.getChatMode());
         ChatTurnStatus turnStatus = parseOptionalTurnStatus(dto == null ? null : dto.getTurnStatus());
 
-        ConversationArchiveStore.ConversationArchivePage archivePage = conversationArchiveStore.listSessionRecordPage(
-            pageNo,
-            pageSize,
-            keyword,
-            chatMode,
-            turnStatus
-        );
+        ConversationArchiveStore.ConversationArchivePage archivePage = clientScope
+            ? conversationArchiveStore.listSessionRecordPageForClient(pageNo, pageSize, keyword, chatMode, turnStatus, accountId)
+            : conversationArchiveStore.listSessionRecordPage(pageNo, pageSize, keyword, chatMode, turnStatus);
         List<ConversationSessionView> sessions = archivePage.records()
             .stream()
             .map(record -> toSessionView(record, false, false))

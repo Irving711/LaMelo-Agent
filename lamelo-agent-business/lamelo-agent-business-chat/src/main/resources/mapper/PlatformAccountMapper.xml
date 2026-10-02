@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lamelo.agent.ai.auth.mapper.PlatformAccountMapper">
+    <resultMap id="accountMap" type="com.lamelo.agent.ai.auth.data.PlatformAccount">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="passwordHash" column="password_hash"/>
+        <result property="enabled" column="enabled"/>
+        <result property="createTime" column="create_time"/>
+        <result property="editTime" column="edit_time"/>
+        <result property="status" column="status"/>
+    </resultMap>
+    <select id="selectActiveByUsername" resultMap="accountMap">
+        SELECT id, username, password_hash, enabled, create_time, edit_time, status
+        FROM lamelo_agent_account
+        WHERE username = #{username} AND status = 1
+        LIMIT 1
+    </select>
+    <select id="selectActiveById" resultMap="accountMap">
+        SELECT id, username, password_hash, enabled, create_time, edit_time, status
+        FROM lamelo_agent_account
+        WHERE id = #{id} AND status = 1
+        LIMIT 1
+    </select>
+    <insert id="insertAccount" parameterType="com.lamelo.agent.ai.auth.data.PlatformAccount"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO lamelo_agent_account
+            (username, password_hash, enabled, create_time, edit_time, status)
+        VALUES (#{username}, #{passwordHash}, #{enabled}, NOW(), NOW(), 1)
+    </insert>
+    <update id="updatePasswordHashById">
+        UPDATE lamelo_agent_account
+        SET password_hash = #{passwordHash}, edit_time = NOW()
+        WHERE id = #{id} AND status = 1
+    </update>
+    <update id="updateEnabledById">
+        UPDATE lamelo_agent_account
+        SET enabled = #{enabled}, edit_time = NOW()
+        WHERE id = #{id} AND status = 1
+    </update>
+    <select id="selectRoleIdByCode" resultType="long">
+        SELECT id FROM lamelo_agent_role WHERE role_code = #{roleCode} AND status = 1 LIMIT 1
+    </select>
+    <insert id="insertRole">
+        INSERT INTO lamelo_agent_role (role_code, role_name, create_time, edit_time, status)
+        VALUES (#{roleCode}, #{roleName}, NOW(), NOW(), 1)
+    </insert>
+    <insert id="insertAccountRole">
+        INSERT INTO lamelo_agent_account_role
+            (account_id, role_id, create_time, edit_time, status)
+        VALUES (#{accountId}, #{roleId}, NOW(), NOW(), 1)
+        ON DUPLICATE KEY UPDATE status = 1, edit_time = NOW()
+    </insert>
+    <select id="selectRoleCodesByAccountId" resultType="string">
+        SELECT r.role_code
+        FROM lamelo_agent_account_role ar
+        INNER JOIN lamelo_agent_role r ON r.id = ar.role_id AND r.status = 1
+        WHERE ar.account_id = #{accountId} AND ar.status = 1
+        ORDER BY r.id
+    </select>
+</mapper>

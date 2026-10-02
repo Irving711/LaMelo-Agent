@@ -56,8 +56,19 @@ mybatis-plus:
 
 app:
   admin-auth:
+    username: ${LAMELO_AGENT_ADMIN_USERNAME:admin}
+    # 本地开发默认值；生产环境通过环境变量或 password-hash 覆盖。
+    password: ${LAMELO_AGENT_ADMIN_PASSWORD:admin123}
+    password-hash: ${LAMELO_AGENT_ADMIN_PASSWORD_HASH:}
+    token-secret: ${LAMELO_AGENT_ADMIN_TOKEN_SECRET:lamelo-agent-admin-token-secret-change-me}
     # 后台登录 token 有效期，单位分钟。JWT 无状态，签发后无法中途吊销，修改该值只影响新签发的 token。
     token-expire-minutes: ${LAMELO_AGENT_ADMIN_TOKEN_EXPIRE_MINUTES:720}
+    admin-role-code: ${LAMELO_AGENT_ADMIN_ROLE_CODE:ADMIN}
+    wechat-app-id: ${LAMELO_AGENT_WECHAT_APP_ID:}
+    wechat-app-secret: ${LAMELO_AGENT_WECHAT_APP_SECRET:}
+    wechat-code-2-session-url: ${LAMELO_AGENT_WECHAT_CODE2SESSION_URL:https://api.weixin.qq.com/sns/jscode2session}
+    wechat-connect-timeout-ms: ${LAMELO_AGENT_WECHAT_CONNECT_TIMEOUT_MS:3000}
+    wechat-read-timeout-ms: ${LAMELO_AGENT_WECHAT_READ_TIMEOUT_MS:5000}
   preview-mode:
     # 只读展示模式开关。开启后按 PreviewModeInterceptor 的 BLOCKED_PATHS 白名单拦截写操作，用于对外演示。
     enabled: ${LAMELO_AGENT_PREVIEW_MODE_ENABLED:false}

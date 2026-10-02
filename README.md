@@ -49,8 +49,9 @@ $env:SPRING_PROFILES_ACTIVE = "dev"
 
 开发环境默认 MySQL 库为 `lamelo_agent`。新环境按顺序执行：
 
-1. 在 MySQL 执行 `sql/Mysql/create_database_mysql.sql` 和 `sql/Mysql/create_table_mysql.sql`。
-2. 启动 Redis、MinIO、Qdrant 和 MySQL；本地地址与账号默认值位于 `application-dev.yaml`。Qdrant 需支持稀疏向量的 IDF 修正和 Query API。已有数据库先执行 `sql/Mysql/migrate_document_task_redis_stream.sql`，再启动 Redis Streams 消费者。
+1. 启动 MySQL，依次执行 `sql/Mysql/create_database_mysql.sql` 和 `sql/Mysql/create_table_mysql.sql`。建表脚本已经包含平台账号、角色、会话归属和微信身份表，可直接重复执行；不会写入默认管理员，若旧版本已写入公开默认哈希，重跑脚本会停用该账号。原先的拆分迁移脚本已合并并移除。
+   本地开发配置默认管理员为 `admin/admin123`（配置在 `application.yaml`，首次登录时创建或恢复账号）。生产部署必须设置 `LAMELO_AGENT_ADMIN_USERNAME` 和强密码对应的 `LAMELO_AGENT_ADMIN_PASSWORD`，或设置 `LAMELO_AGENT_ADMIN_PASSWORD_HASH` 覆盖默认值。若使用旧版脚本产生的 `admin` 账号，首次按当前配置登录时会重置密码并启用账号。
+2. 启动 Redis、MinIO 和 Qdrant；本地地址与账号默认值位于 `application-dev.yaml`。Qdrant 需支持稀疏向量的 IDF 修正和 Query API。
 3. 如需保留旧 pgvector 与 Elasticsearch 索引，先使用 `scripts/migrate_qdrant.py` 重建并核对数据，再切换 Qdrant 集合别名；操作说明见 `scripts/README-qdrant-migration.md`。
 4. 启动后端和前端：
 

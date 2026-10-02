@@ -58,6 +58,13 @@ public interface ConversationArchiveStore {
                                                   ChatQueryMode chatMode,
                                                   ChatTurnStatus latestTurnStatus);
 
+    ConversationArchivePage listSessionRecordPageForClient(int pageNo,
+                                                           int pageSize,
+                                                           String keyword,
+                                                           ChatQueryMode chatMode,
+                                                           ChatTurnStatus latestTurnStatus,
+                                                           Long accountId);
+
     ConversationRemovalResult deleteSession(String conversationId);
 
     record ConversationArchiveRecord(

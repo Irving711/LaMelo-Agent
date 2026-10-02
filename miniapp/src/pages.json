@@ -1,0 +1,29 @@
+{
+  "pages": [
+    { "path": "pages/auth/login", "style": { "navigationBarTitleText": "登录" } },
+    { "path": "pages/auth/bind", "style": { "navigationBarTitleText": "绑定微信" } },
+    { "path": "pages/chat/index", "style": { "navigationBarTitleText": "对话" } },
+    { "path": "pages/sessions/index", "style": { "navigationBarTitleText": "会话" } },
+    { "path": "pages/profile/index", "style": { "navigationBarTitleText": "我的" } },
+    { "path": "pages/admin/index", "style": { "navigationBarTitleText": "管理后台" } },
+    { "path": "pages/admin/documents/index", "style": { "navigationBarTitleText": "文档管理" } },
+    { "path": "pages/admin/documents/detail", "style": { "navigationBarTitleText": "文档详情" } },
+    { "path": "pages/admin/knowledge-route/index", "style": { "navigationBarTitleText": "知识路由" } },
+    { "path": "pages/admin/knowledge-route/traces", "style": { "navigationBarTitleText": "路由追踪" } },
+    { "path": "pages/admin/observability/index", "style": { "navigationBarTitleText": "会话观测" } },
+    { "path": "pages/admin/observability/session", "style": { "navigationBarTitleText": "会话链路" } },
+    { "path": "pages/admin/observability/exchange", "style": { "navigationBarTitleText": "轮次详情" } }
+  ],
+  "tabBar": {
+    "color": "#6b7280",
+    "selectedColor": "#2563eb",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      { "pagePath": "pages/chat/index", "text": "对话" },
+      { "pagePath": "pages/sessions/index", "text": "会话" },
+      { "pagePath": "pages/profile/index", "text": "我的" }
+    ]
+  },
+  "easycom": { "autoscan": true }
+}

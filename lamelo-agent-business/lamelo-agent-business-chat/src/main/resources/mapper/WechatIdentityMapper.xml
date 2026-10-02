@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lamelo.agent.ai.auth.mapper.WechatIdentityMapper">
+    <resultMap id="identityMap" type="com.lamelo.agent.ai.auth.data.WechatIdentity">
+        <id property="id" column="id"/>
+        <result property="openid" column="openid"/>
+        <result property="unionid" column="unionid"/>
+        <result property="userId" column="user_id"/>
+        <result property="createTime" column="create_time"/>
+        <result property="editTime" column="edit_time"/>
+        <result property="status" column="status"/>
+    </resultMap>
+    <select id="selectActiveByOpenid" resultMap="identityMap">
+        SELECT id, openid, unionid, user_id, create_time, edit_time, status
+        FROM lamelo_agent_wechat_identity
+        WHERE openid = #{openid} AND status = 1
+        LIMIT 1
+    </select>
+    <select id="selectActiveByUnionid" resultMap="identityMap">
+        SELECT id, openid, unionid, user_id, create_time, edit_time, status
+        FROM lamelo_agent_wechat_identity
+        WHERE unionid = #{unionid} AND status = 1
+        LIMIT 1
+    </select>
+    <select id="selectActiveByUserId" resultMap="identityMap">
+        SELECT id, openid, unionid, user_id, create_time, edit_time, status
+        FROM lamelo_agent_wechat_identity
+        WHERE user_id = #{userId} AND status = 1
+        LIMIT 1
+    </select>
+    <insert id="insertIdentity" parameterType="com.lamelo.agent.ai.auth.data.WechatIdentity"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO lamelo_agent_wechat_identity
+            (openid, unionid, user_id, create_time, edit_time, status)
+        VALUES (#{openid}, #{unionid}, #{userId}, NOW(), NOW(), 1)
+    </insert>
+    <update id="logicalDeleteByUserId">
+        UPDATE lamelo_agent_wechat_identity
+        SET status = 0, edit_time = NOW()
+        WHERE user_id = #{userId} AND status = 1
+    </update>
+</mapper>

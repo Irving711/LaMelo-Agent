@@ -27,7 +27,7 @@ public class AdminWebMvcConfiguration implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(adminAuthInterceptor)
-            .addPathPatterns("/manage/**", "/admin/auth/me");
+            .addPathPatterns("/manage/**", "/admin/auth/me", "/miniapp/auth/bind", "/miniapp/auth/unbind");
 
         registry.addInterceptor(previewModeInterceptor)
             .addPathPatterns("/**");

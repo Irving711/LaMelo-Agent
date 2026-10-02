@@ -1,0 +1,32 @@
+{
+  "name": "lamelo-agent-miniapp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:mp-weixin": "uni -p mp-weixin",
+    "build:mp-weixin": "node scripts/check-config.mjs --production && uni build -p mp-weixin",
+    "build:mp-weixin:dev": "uni build -p mp-weixin",
+    "test:unit": "vitest run",
+    "check-config": "node scripts/check-config.mjs"
+  },
+  "dependencies": {
+    "@dcloudio/types": "3.4.31",
+    "@dcloudio/uni-app": "3.0.0-alpha-5020620260914001",
+    "@dcloudio/uni-mp-weixin": "3.0.0-alpha-5020620260914001",
+    "@vue/server-renderer": "3.4.21",
+    "@vue/shared": "3.4.21",
+    "uni-ui": "1.0.0",
+    "vue": "3.4.21"
+  },
+  "devDependencies": {
+    "@dcloudio/vite-plugin-uni": "3.0.0-alpha-5020620260914001",
+    "@types/node": "24.10.0",
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^26.0.0",
+    "sass": "^1.83.4",
+    "typescript": "^5.7.2",
+    "vite": "^5.2.8",
+    "vitest": "^3.2.7"
+  }
+}
