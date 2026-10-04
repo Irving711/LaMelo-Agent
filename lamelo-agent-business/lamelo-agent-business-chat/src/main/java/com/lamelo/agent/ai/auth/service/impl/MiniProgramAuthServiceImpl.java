@@ -7,6 +7,9 @@ import com.lamelo.agent.ai.auth.data.WechatIdentity;
 import com.lamelo.agent.ai.auth.dto.AdminLoginRequest;
 import com.lamelo.agent.ai.auth.dto.BindWechatRequest;
 import com.lamelo.agent.ai.auth.dto.SetCredentialsRequest;
+import com.lamelo.agent.ai.auth.dto.RegisterRequest;
+import com.lamelo.agent.ai.auth.dto.SmsLoginRequest;
+import com.lamelo.agent.ai.auth.dto.SmsPasswordResetRequest;
 import com.lamelo.agent.ai.auth.dto.WechatCodeLoginRequest;
 import com.lamelo.agent.ai.auth.mapper.PlatformAccountMapper;
 import com.lamelo.agent.ai.auth.mapper.WechatIdentityMapper;
@@ -15,6 +18,7 @@ import com.lamelo.agent.ai.auth.support.AdminJwtTokenService;
 import com.lamelo.agent.ai.auth.support.AdminRequestContext;
 import com.lamelo.agent.ai.auth.support.WechatCodeExchangeClient;
 import com.lamelo.agent.ai.auth.support.WechatSession;
+import com.lamelo.agent.ai.auth.support.SmsCodeService;
 import com.lamelo.agent.ai.auth.vo.MiniProgramLoginVo;
 import com.lamelo.agent.exception.LaMeloAgentFrameException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,18 +46,21 @@ public class MiniProgramAuthServiceImpl implements MiniProgramAuthService {
     private final PlatformAccountMapper accountMapper;
     private final WechatIdentityMapper identityMapper;
     private final WechatCodeExchangeClient exchangeClient;
+    private final SmsCodeService smsCodeService;
 
     @Autowired
     public MiniProgramAuthServiceImpl(AdminAuthProperties properties,
                                       AdminJwtTokenService tokenService,
                                       PlatformAccountMapper accountMapper,
                                       WechatIdentityMapper identityMapper,
-                                      WechatCodeExchangeClient exchangeClient) {
+                                      WechatCodeExchangeClient exchangeClient,
+                                      SmsCodeService smsCodeService) {
         this.properties = properties;
         this.tokenService = tokenService;
         this.accountMapper = accountMapper;
         this.identityMapper = identityMapper;
         this.exchangeClient = exchangeClient;
+        this.smsCodeService = smsCodeService;
     }
 
     @Override
@@ -84,6 +91,71 @@ public class MiniProgramAuthServiceImpl implements MiniProgramAuthService {
         String username = require(request == null ? null : request.getUsername(), "账号不能为空");
         String password = require(request == null ? null : request.getPassword(), "密码不能为空");
         return tokenVo(authenticate(username, password));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public MiniProgramLoginVo register(RegisterRequest request) {
+        String username = require(request == null ? null : request.getUsername(), "账号不能为空");
+        String password = require(request == null ? null : request.getPassword(), "密码不能为空");
+        if (password.length() < 6) {
+            throw new LaMeloAgentFrameException(400, "密码至少需要6位");
+        }
+        if (accountMapper.selectActiveByUsername(username) != null) {
+            throw new LaMeloAgentFrameException(409, "账号已存在");
+        }
+        PlatformAccount account = new PlatformAccount();
+        account.setUsername(username);
+        account.setPasswordHash(PASSWORD_ENCODER.encode(password));
+        account.setEnabled(true);
+        try {
+            accountMapper.insertAccount(account);
+        } catch (RuntimeException exception) {
+            if (isDuplicateKey(exception)) throw new LaMeloAgentFrameException(409, "账号已存在");
+            throw exception;
+        }
+        PlatformAccount created = accountMapper.selectActiveByUsername(username);
+        if (created == null) throw new LaMeloAgentFrameException(500, "账号创建失败");
+        return tokenVo(created);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public MiniProgramLoginVo smsLogin(SmsLoginRequest request) {
+        String mobile = require(request == null ? null : request.getMobile(), "手机号不能为空");
+        String code = require(request == null ? null : request.getCode(), "验证码不能为空");
+        smsCodeService.verifyAndConsume(mobile, "login", code);
+        PlatformAccount account = accountMapper.selectActiveByUsername(mobile);
+        if (account == null) {
+            account = new PlatformAccount();
+            account.setUsername(mobile);
+            account.setPasswordHash(UNUSABLE_PASSWORD_HASH);
+            account.setEnabled(true);
+            try { accountMapper.insertAccount(account); }
+            catch (RuntimeException exception) { if (!isDuplicateKey(exception)) throw exception; }
+            account = accountMapper.selectActiveByUsername(mobile);
+        }
+        if (account == null || !Boolean.TRUE.equals(account.getEnabled())) {
+            throw new LaMeloAgentFrameException(401, "账号已停用");
+        }
+        return tokenVo(account);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void resetPassword(SmsPasswordResetRequest request) {
+        String mobile = require(request == null ? null : request.getMobile(), "手机号不能为空");
+        String code = require(request == null ? null : request.getCode(), "验证码不能为空");
+        String password = require(request == null ? null : request.getPassword(), "密码不能为空");
+        if (password.length() < 6) {
+            throw new LaMeloAgentFrameException(400, "密码至少需要6位");
+        }
+        smsCodeService.verifyAndConsume(mobile, "reset", code);
+        PlatformAccount account = accountMapper.selectActiveByUsername(mobile);
+        if (account == null) {
+            throw new LaMeloAgentFrameException(404, "该手机号尚未注册");
+        }
+        accountMapper.updatePasswordHashById(account.getId(), PASSWORD_ENCODER.encode(password));
     }
 
     @Override

@@ -13,6 +13,8 @@ export interface AuthStore {
   loading: boolean
   loginWithWechat(code: string): Promise<MiniProgramProfile>
   loginWithPassword(username: string, password: string): Promise<MiniProgramProfile>
+  register(username: string, password: string): Promise<MiniProgramProfile>
+  loginWithSms(mobile: string, code: string): Promise<MiniProgramProfile>
   bindExistingAccount(payload: { username: string; password: string }): Promise<MiniProgramProfile>
   setCredentials(payload: { username: string; password: string }): Promise<MiniProgramProfile>
   unbindWechat(password: string): Promise<void>
@@ -65,6 +67,24 @@ export function createAuthStore(options: { api?: AuthApi } = {}): AuthStore {
       this.loading = true
       try {
         const profile = assignProfile(this, await api.passwordLogin(username, password))
+        if (profile.token && !this.consumeRequestedRoute()) enterApp()
+        return profile
+      } finally { this.loading = false }
+    },
+    async register(username: string, password: string) {
+      if (!api.register) throw new Error('注册接口未配置')
+      this.loading = true
+      try {
+        const profile = assignProfile(this, await api.register({ username, password }))
+        if (profile.token && !this.consumeRequestedRoute()) enterApp()
+        return profile
+      } finally { this.loading = false }
+    },
+    async loginWithSms(mobile: string, code: string) {
+      if (!api.smsLogin) throw new Error('短信登录接口未配置')
+      this.loading = true
+      try {
+        const profile = assignProfile(this, await api.smsLogin(mobile, code))
         if (profile.token && !this.consumeRequestedRoute()) enterApp()
         return profile
       } finally { this.loading = false }

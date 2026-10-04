@@ -69,6 +69,12 @@ app:
     wechat-code-2-session-url: ${LAMELO_AGENT_WECHAT_CODE2SESSION_URL:https://api.weixin.qq.com/sns/jscode2session}
     wechat-connect-timeout-ms: ${LAMELO_AGENT_WECHAT_CONNECT_TIMEOUT_MS:3000}
     wechat-read-timeout-ms: ${LAMELO_AGENT_WECHAT_READ_TIMEOUT_MS:5000}
+  sms:
+    # 留空时开发环境只记录验证码；配置后向该地址 POST {mobile, purpose, code}。
+    gateway-url: ${LAMELO_AGENT_SMS_GATEWAY_URL:}
+    bearer-token: ${LAMELO_AGENT_SMS_BEARER_TOKEN:}
+    connect-timeout-ms: ${LAMELO_AGENT_SMS_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${LAMELO_AGENT_SMS_READ_TIMEOUT_MS:5000}
   preview-mode:
     # 只读展示模式开关。开启后按 PreviewModeInterceptor 的 BLOCKED_PATHS 白名单拦截写操作，用于对外演示。
     enabled: ${LAMELO_AGENT_PREVIEW_MODE_ENABLED:false}

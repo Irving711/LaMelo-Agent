@@ -14,6 +14,7 @@ import com.lamelo.agent.ai.auth.support.AdminJwtTokenService;
 import com.lamelo.agent.ai.auth.support.AdminRequestContext;
 import com.lamelo.agent.ai.auth.support.WechatCodeExchangeClient;
 import com.lamelo.agent.ai.auth.support.WechatSession;
+import com.lamelo.agent.ai.auth.support.SmsCodeService;
 import com.lamelo.agent.ai.auth.vo.MiniProgramLoginVo;
 import com.lamelo.agent.exception.LaMeloAgentFrameException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,6 +44,7 @@ class MiniProgramAuthServiceTest {
     private PlatformAccountMapper accountMapper;
     private WechatIdentityMapper identityMapper;
     private WechatCodeExchangeClient exchangeClient;
+    private SmsCodeService smsCodeService;
     private AdminJwtTokenService tokenService;
     private MiniProgramAuthServiceImpl service;
     private PlatformAccount account;
@@ -55,6 +57,7 @@ class MiniProgramAuthServiceTest {
         accountMapper = mock(PlatformAccountMapper.class);
         identityMapper = mock(WechatIdentityMapper.class);
         exchangeClient = mock(WechatCodeExchangeClient.class);
+        smsCodeService = mock(SmsCodeService.class);
         account = new PlatformAccount();
         account.setId(7L);
         account.setUsername("admin");
@@ -65,7 +68,7 @@ class MiniProgramAuthServiceTest {
         when(accountMapper.selectRoleCodesByAccountId(7L)).thenReturn(List.of("ADMIN"));
         tokenService = mock(AdminJwtTokenService.class);
         service = new MiniProgramAuthServiceImpl(properties, tokenService,
-            accountMapper, identityMapper, exchangeClient);
+            accountMapper, identityMapper, exchangeClient, smsCodeService);
     }
 
     @Test
