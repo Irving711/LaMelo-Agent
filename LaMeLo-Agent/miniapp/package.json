@@ -1,0 +1,22 @@
+{
+  "name": "miniapp",
+  "version": "1.0.0",
+  "description": "LaMeLo miniapp",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "vue": "^3.4.0",
+    "element-plus": "^2.4.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "vite-plugin-vue": "^5.0.0",
+    "vite-plugin-vue-jsx": "^4.0.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "less": "^4.0.0"
+  }
+}

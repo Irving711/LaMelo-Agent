@@ -46,7 +46,7 @@ describe('miniapp auth store', () => {
     expect(navigateTo).toHaveBeenCalledWith({ url: '/pages/auth/login' })
   })
 
-  it('restores a requested tab bar route after login with reLaunch', async () => {
+  it('restores a requested chat home route after login with reLaunch', async () => {
     const redirectTo = vi.fn()
     const reLaunch = vi.fn()
     ;(globalThis as any).uni = {
@@ -58,7 +58,7 @@ describe('miniapp auth store', () => {
     expect(redirectTo).not.toHaveBeenCalled()
   })
 
-  it('restores a requested non tab bar route after login with redirectTo', async () => {
+  it('restores a requested secondary route after login with redirectTo', async () => {
     const redirectTo = vi.fn()
     const reLaunch = vi.fn()
     ;(globalThis as any).uni = {

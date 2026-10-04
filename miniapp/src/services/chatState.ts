@@ -7,6 +7,7 @@ export interface ChatStateSnapshot {
   answer: string
   thinking: string[]
   references: unknown[]
+  recommendations: string[]
   error: Error | null
 }
 
@@ -16,11 +17,12 @@ export class ChatState {
     answer: '',
     thinking: [],
     references: [],
+    recommendations: [],
     error: null
   }
 
   start(): ChatStateSnapshot {
-    this.current = { status: 'streaming', answer: '', thinking: [], references: [], error: null }
+    this.current = { status: 'streaming', answer: '', thinking: [], references: [], recommendations: [], error: null }
     return this.snapshot()
   }
 
@@ -31,6 +33,7 @@ export class ChatState {
     if (event.type === 'delta') this.current.answer += event.content
     if (event.type === 'thinking' && event.content) this.current.thinking.push(event.content)
     if (event.type === 'reference') this.current.references.push(...event.content)
+    if (event.type === 'recommend') this.current.recommendations = [...event.content]
     if (event.type === 'error') {
       if (this.current.status !== 'completed' && this.current.status !== 'stopped') {
         this.current.status = 'error'
@@ -43,7 +46,7 @@ export class ChatState {
   }
 
   snapshot(): ChatStateSnapshot {
-    return { ...this.current, thinking: [...this.current.thinking], references: [...this.current.references] }
+    return { ...this.current, thinking: [...this.current.thinking], references: [...this.current.references], recommendations: [...this.current.recommendations] }
   }
 }
 

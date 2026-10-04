@@ -1,5 +1,5 @@
 import { ChatStreamClient } from '../services/chatStream'
-import { CHAT_STREAM_PROTOCOL_FIXTURE } from '../services/chatProtocol'
+import { CHAT_STREAM_PROTOCOL_FIXTURE, normalizeChatEvent } from '../services/chatProtocol'
 import { createChatState } from '../services/chatState'
 import { UnauthorizedError, ForbiddenError } from '../utils/errors'
 
@@ -22,6 +22,10 @@ function requestHarness() {
 }
 
 describe('ChatStreamClient', () => {
+  it('normalizes recommendation events from the backend', () => {
+    const event = { type: 'recommend', content: ['问题一', '问题二'] }
+    expect(normalizeChatEvent(event)).toEqual({ type: 'recommend', content: ['问题一', '问题二'], raw: event })
+  })
   const originalUni = (globalThis as any).uni
   afterEach(() => { ;(globalThis as any).uni = originalUni; vi.restoreAllMocks() })
   it('normalizes incremental text, thinking, references, and completion', async () => {

@@ -12,6 +12,7 @@ export interface ChatStreamHandlers {
   onThinking?: (event: Extract<NormalizedChatEvent, { type: 'thinking' }>) => void
   onDelta?: (event: Extract<NormalizedChatEvent, { type: 'delta' }>) => void
   onReference?: (event: Extract<NormalizedChatEvent, { type: 'reference' }>) => void
+  onRecommend?: (event: Extract<NormalizedChatEvent, { type: 'recommend' }>) => void
   onComplete?: (event: Extract<NormalizedChatEvent, { type: 'complete' }>) => void
   onError?: (error: Error, event?: Extract<NormalizedChatEvent, { type: 'error' }>) => void
   onStopped?: (event: Extract<NormalizedChatEvent, { type: 'stopped' }>) => void
@@ -96,6 +97,7 @@ export class ChatStreamClient {
       if (event.type === 'thinking') handlers.onThinking?.(event)
       if (event.type === 'delta') handlers.onDelta?.(event)
       if (event.type === 'reference') handlers.onReference?.(event)
+      if (event.type === 'recommend') handlers.onRecommend?.(event)
       if (event.type === 'complete') handlers.onComplete?.(event)
       if (event.type === 'stopped') { sawStopped = true; handlers.onStopped?.(event) }
       if (event.type === 'error') handlers.onError?.(event.error, event)

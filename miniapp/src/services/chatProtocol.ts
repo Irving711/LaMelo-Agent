@@ -39,6 +39,7 @@ export type NormalizedChatEvent =
   | { type: 'thinking'; content: string; raw: ChatStreamEvent }
   | { type: 'delta'; content: string; raw: ChatStreamEvent }
   | { type: 'reference'; content: unknown[]; raw: ChatStreamEvent }
+  | { type: 'recommend'; content: string[]; raw: ChatStreamEvent }
   | { type: 'complete'; raw: ChatStreamEvent }
   | { type: 'error'; error: Error; raw?: ChatStreamEvent }
   | { type: 'stopped'; content?: string; raw: ChatStreamEvent }
@@ -64,6 +65,10 @@ export function normalizeChatEvent(event: ChatStreamEvent): NormalizedChatEvent 
     const content = Array.isArray(event.content) ? event.content : event.content == null ? [] : [event.content]
     return { type: 'reference', content, raw: event }
   }
+  if (type === 'recommend' || type === 'recommendation') {
+    const content = Array.isArray(event.content) ? event.content.map(asText).filter(Boolean) : []
+    return { type: 'recommend', content, raw: event }
+  }
   if (type === 'complete') return { type: 'complete', raw: event }
   if (type === 'stopped') return { type: 'stopped', content: asText(event.content), raw: event }
   if (type === 'error') return { type: 'error', error: new Error(asText(event.content) || '流式请求失败'), raw: event }
@@ -77,4 +82,3 @@ export function parseSseBlock(block: string): string[] {
   if (dataLines.length) return [dataLines.map((line) => line.slice(5).replace(/^ /, '')).join('\n')]
   return lines.filter((line) => !line.startsWith(':'))
 }
-

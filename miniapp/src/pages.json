@@ -19,16 +19,5 @@
     { "path": "pages/admin/observability/session", "style": { "navigationBarTitleText": "会话链路" } },
     { "path": "pages/admin/observability/exchange", "style": { "navigationBarTitleText": "轮次详情" } }
   ],
-  "tabBar": {
-    "color": "#6b7280",
-    "selectedColor": "#2563eb",
-    "backgroundColor": "#eaf7ff",
-    "borderStyle": "black",
-    "list": [
-      { "pagePath": "pages/chat/index", "text": "对话" },
-      { "pagePath": "pages/sessions/index", "text": "会话" },
-      { "pagePath": "pages/profile/index", "text": "我的" }
-    ]
-  },
   "easycom": { "autoscan": true }
 }

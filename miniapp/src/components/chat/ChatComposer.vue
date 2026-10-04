@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<{
   disabled: false,
   loading: false,
   selectedDocumentId: '',
-  modes: () => [{ value: 'AUTO_DOCUMENT', label: '自动知识问答' }, { value: 'OPEN_CHAT', label: '开放式对话' }, { value: 'DOCUMENT', label: '指定文档问答' }],
+  modes: () => [{ value: 'OPEN_CHAT', label: '开放式对话' }, { value: 'AUTO_DOCUMENT', label: '自动知识问答' }, { value: 'DOCUMENT', label: '指定文档问答' }],
   knowledgeOptions: () => []
 })
 

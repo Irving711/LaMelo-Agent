@@ -6,13 +6,11 @@ import AppEmptyState from '../components/AppEmptyState.vue'
 const root = resolve(process.cwd())
 
 describe('miniapp workspace', () => {
-  it('declares login and all three tab pages', () => {
+  it('uses the chat page as the navigation home without a bottom tab bar', () => {
     const pages = JSON.parse(readFileSync(resolve(root, 'src/pages.json'), 'utf8'))
     const paths = pages.pages.map((page: { path: string }) => page.path)
     expect(paths).toEqual(expect.arrayContaining(['pages/auth/login', 'pages/chat/index', 'pages/sessions/index', 'pages/profile/index', 'pages/admin/index']))
-    expect(pages.tabBar.list.map((tab: { pagePath: string }) => tab.pagePath)).toEqual([
-      'pages/chat/index', 'pages/sessions/index', 'pages/profile/index'
-    ])
+    expect(pages.tabBar).toBeUndefined()
   })
 
   it('renders default and custom empty state text', () => {

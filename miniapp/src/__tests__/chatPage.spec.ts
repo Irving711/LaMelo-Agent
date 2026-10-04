@@ -4,8 +4,19 @@ import ChatComposer from '../components/chat/ChatComposer.vue'
 import StreamStatus from '../components/chat/StreamStatus.vue'
 import CitationList from '../components/chat/CitationList.vue'
 import SessionList from '../components/session/SessionList.vue'
+import ChatSidebar from '../components/chat/ChatSidebar.vue'
 
 describe('ordinary user chat components', () => {
+  it('opens recent sessions from a drawer and exposes new chat and profile actions', async () => {
+    const wrapper = mount(ChatSidebar, { props: { open: true, records: [{ conversationId: 'c1', latestUserMessage: '旧问题' }], pageNo: 1, totalPages: 1 } })
+    expect(wrapper.text()).toContain('旧问题')
+    await wrapper.get('[data-testid="sidebar-session-c1"]').trigger('click')
+    await wrapper.get('[data-testid="sidebar-new-chat"]').trigger('click')
+    await wrapper.get('[data-testid="sidebar-profile"]').trigger('click')
+    expect(wrapper.emitted('select')).toEqual([['c1']])
+    expect(wrapper.emitted('new-chat')).toEqual([[]])
+    expect(wrapper.emitted('profile')).toEqual([[]])
+  })
   it('does not show generation status copy', () => {
     expect(mount(StreamStatus, { props: { status: 'streaming' } }).text()).toBe('')
     expect(mount(StreamStatus, { props: { status: 'completed' } }).text()).toBe('')
@@ -22,6 +33,11 @@ describe('ordinary user chat components', () => {
     })
     expect(wrapper.find('.ym-sender').exists()).toBe(true)
     expect(wrapper.text()).toContain('指南')
+  })
+
+  it('defaults the composer mode list to open chat first', () => {
+    const wrapper = mount(ChatComposer, { props: { mode: 'OPEN_CHAT' } })
+    expect(wrapper.text()).toContain('开放式对话')
   })
   it('renders normalized messages and emits retry and stop actions', async () => {
     const wrapper = mount(MessageList, {

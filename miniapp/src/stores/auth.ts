@@ -4,7 +4,6 @@ import { clearAuthStorage, consumeLoginRoute, getProfile, getToken, setLoginRout
 type UniNavigation = {
   navigateTo?: (options: { url: string }) => void
   redirectTo?: (options: { url: string }) => void
-  switchTab?: (options: { url: string }) => void
   reLaunch?: (options: { url: string }) => void
 }
 
@@ -30,12 +29,10 @@ function uni(): UniNavigation {
   return ((globalThis as { uni?: UniNavigation }).uni || {})
 }
 
-const TAB_BAR_ROUTES = ['/pages/chat/index', '/pages/sessions/index', '/pages/profile/index']
-
 function enterApp(route = '/pages/chat/index') {
   const target = route && route.includes('/pages/') ? route : '/pages/chat/index'
   const path = target.split('?')[0]
-  if (TAB_BAR_ROUTES.includes(path)) uni().reLaunch?.({ url: target })
+  if (path === '/pages/chat/index') uni().reLaunch?.({ url: target })
   else uni().redirectTo?.({ url: target })
 }
 

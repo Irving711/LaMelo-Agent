@@ -23,6 +23,7 @@ export function createChatStore(options: { openStream?: typeof chatApi.openStrea
         onThinking: apply,
         onDelta: apply,
         onReference: apply,
+        onRecommend: apply,
         onComplete: apply,
         onStopped: apply,
         onError: (error) => apply({ type: 'error', error })
